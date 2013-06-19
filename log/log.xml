@@ -1,9 +1,9 @@
 <entry>
-  <data> Wed Jun 19 15:30:58 EDT 2013 </data> 
+  <data> Wed Jun 19 16:32:59 EDT 2013 </data> 
   <mode> FAST </mode> 
   <timeout> NO </timeout> 
   <options>
-    <option><name> javaArgs </name>           <value> ThreadedCounter 500  </value> </option>
+    <option><name> javaArgs </name>           <value> SuperSimpleProgram  </value> </option>
     <option><name> noDecInline </name>        <value> false </value> </option>
     <option><name> quiet </name>              <value> false </value> </option>
     <option><name> logs </name>               <value> log </value> </option>
@@ -17,12 +17,12 @@
     <option><name> help </name>               <value> false </value> </option>
     <option><name> toolpath </name>           <value> ./classes/tools/trials </value> </option>
     <option><name> classpath </name>          <value> ./src/Targets </value> </option>
-    <option><name> tool </name>               <value> ThreadIDTool </value> </option>
+    <option><name> tool </name>               <value> SimpleTool </value> </option>
     <option><name> tools </name>              <value> false </value> </option>
     <option><name> noxml </name>              <value> false </value> </option>
     <option><name> constantGC </name>         <value> false </value> </option>
     <option><name> noFP </name>               <value> false </value> </option>
-    <option><name> noEnter </name>            <value> true </value> </option>
+    <option><name> noEnter </name>            <value> false </value> </option>
     <option><name> xml </name>                <value> log.xml </value> </option>
     <option><name> pulse </name>              <value>  </value>   </option>
     <option><name> maxTime </name>            <value> 0 </value>  </option>
@@ -37,7 +37,7 @@
     <option><name> methods </name>            <value> [default=ACCEPT] </value> </option>
     <option><name> fields </name>             <value> ["-.*this\$.*", default=ACCEPT] </value> </option>
     <option><name> lines </name>              <value> [default=ACCEPT] </value> </option>
-    <option><name> classes </name>            <value> ["-java..*", "-javax..*", "-com.sun..*", "-org.objectweb.asm..*", "-sun..*", "-rr..*", "-rrtools..*", "-acme..*", "-.*__\$rr_.*", default=ACCEPT] </value> </option>
+    <option><name> classes </name>            <value> ["-ReadWriteCount", "-java..*", "-javax..*", "-com.sun..*", "-org.objectweb.asm..*", "-sun..*", "-rr..*", "-rrtools..*", "-acme..*", "-.*__\$rr_.*", default=ACCEPT] </value> </option>
     <option><name> shadowThread </name>       <value> ["-.*main\(\[Ljava/lang/String;\)V.*", "-.*run\(\)V.*", "+.*\$rr__Original.*", "-.*\$rr.*", "-.*\&lt;init\&gt;.*", "-.*\&lt;clinit\&gt;.*", default=ACCEPT] </value> </option>
     <option><name> noop </name>               <value> [default=ACCEPT] </value> </option>
     <option><name> noConstructor </name>      <value> false </value> </option>
@@ -65,20 +65,20 @@
     <name> java.vm.version </name>     <value> 20.10-b01-428 </value> 
     <name> java.vm.vendor </name>      <value> Apple Inc. </value> 
     <name> java.vm.name </name>        <value> Java HotSpot(TM) 64-Bit Server VM </value> 
-    <name> java.class.path </name>     <value> .:/Users/Nikki/RoadRunner/RoadRunner/build/jar/rragent.jar </value> 
+    <name> java.class.path </name>     <value> .:/Users/Nikki/AIMProject/RoadRunner/build/jar/rragent.jar </value> 
     <name> os.name </name>             <value> Mac OS X </value> 
     <name> os.arch </name>             <value> x86_64 </value> 
     <name> os.version </name>          <value> 10.7.4 </value> 
     <name> user.name </name>           <value> Nikki </value> 
-    <name> user.dir </name>            <value> /Users/Nikki/RoadRunner/RoadRunner </value> 
+    <name> user.dir </name>            <value> /Users/Nikki/AIMProject/RoadRunner </value> 
     <memPeak> 34 </memPeak> 
-    <memUsed> 25 </memUsed> 
+    <memUsed> 19 </memUsed> 
     <memMax> 4286 </memMax> 
-    <compileTime> 751 </compileTime> 
-    <gc> <name> ParNew </name> <time> 24 </time> </gc>
+    <compileTime> 550 </compileTime> 
+    <gc> <name> ParNew </name> <time> 26 </time> </gc>
     <gc> <name> ConcurrentMarkSweep </name> <time> 0 </time> </gc>
   </system>
-  <instrumented> Counter ThreadedCounter  </instrumented> 
+  <instrumented> SimpleTool$1 SuperSimpleProgram  </instrumented> 
   <instrumentedNum> 2 </instrumentedNum> 
   <skipped>  </skipped> 
   <skippedNum> 0 </skippedNum> 
@@ -94,19 +94,19 @@
 
     <counter><name> "Handler: Count" </name>                             <value> 0 </value> </counter>
 
-    <counter><name> "ShadowThread: Count" </name>                        <value> 6 </value> </counter>
-    <counter><name> "ShadowThread: Max Live" </name>                     <value> 5 </value> </counter>
+    <counter><name> "ShadowThread: Count" </name>                        <value> 1 </value> </counter>
+    <counter><name> "ShadowThread: Max Live" </name>                     <value> 0 </value> </counter>
     <counter><name> "ShadowThread: getCurrentThread() calls" </name>     <value> 0 </value> </counter>
 
-    <counter><name> "Time: Instrumenter" </name>                         <value> <total>23.0000</total> <count>2</count> <ave>11.5000</ave> </value> </counter>
+    <counter><name> "Time: Instrumenter" </name>                         <value> <total>19.0000</total> <count>2</count> <ave>9.50000</ave> </value> </counter>
   </counters>
   <tool>
-    <name> ThreadIDTool </name> 
+    <name> SimpleTool </name> 
   </tool>
   <tool>
     <name> Last </name> 
   </tool>
-  <threadCount> 6 </threadCount> 
+  <threadCount> 1 </threadCount> 
   <errorTotal> 0 </errorTotal> 
   <distinctErrorTotal> 0 </distinctErrorTotal> 
   <methods>
@@ -124,5 +124,5 @@
   <warningsTotal> 0 </warningsTotal> 
   <yikesTotal> 0 </yikesTotal> 
   <failed> false </failed> 
-  <time> 692 </time> 
+  <time> 544 </time> 
 </entry>

@@ -1,3 +1,3 @@
 #!/bin/bash
            /System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/bin/java -version 
-           /System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/bin/java -javaagent:/Users/Nikki/RoadRunner/RoadRunner/build/jar/rragent.jar $JVM_ARGS -Xbootclasspath/p:/Users/Nikki/RoadRunner/RoadRunner/build/jar/RoadRunner.jar:$RR_TOOLPATH rr.RRMain $*
+           /System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/bin/java -javaagent:/Users/Nikki/AIMProject/RoadRunner/build/jar/rragent.jar $JVM_ARGS -Xbootclasspath/p:/Users/Nikki/AIMProject/RoadRunner/build/jar/RoadRunner.jar:$RR_TOOLPATH rr.RRMain $*
