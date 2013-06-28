@@ -1,0 +1,10 @@
+#!/bin/bash
+
+source=~/Documents/java\ workspace/RoadRunner/src
+
+cp "$source"/"$1".java src
+cd src
+javac "$1".java
+mv "$1".java tools/trials
+mv "$1"*.class ~/AIMProject/RoadRunner/classes/tools/trials
+cd ..
