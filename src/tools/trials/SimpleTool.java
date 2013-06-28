@@ -31,5 +31,8 @@ public class SimpleTool extends Tool{
 	public void exit(MethodEvent me) {
 		System.out.println("A method was exited.");
 	}
-	
+	@Override
+	public void fini(){
+	    
+	}
 }
