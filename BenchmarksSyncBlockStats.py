@@ -8,7 +8,12 @@ class BenchmarksSyncBlockStats():
  
     def run(self, args):
         getTool = shlex.split("./getToolFromEclipse SyncBlocksStats")
-        subprocess.Popen(getTool);
+        p = subprocess.Popen(getTool);
+        p.wait();
+
+        if(len(args) < 2):
+            print "Must give number of times to run"
+            exit();
 
         numRuns = int(args[1]);
 
@@ -17,8 +22,10 @@ class BenchmarksSyncBlockStats():
         for program in benchmarks.keys():
             results = list();
             benchmarks[program] = results;
+            print "Running " + program
             for i in range(numRuns):
                 results.append(self.runBenchmark(program))
+            print program + " completed."
 
         for program in benchmarks.keys():
             total = 0;
@@ -55,10 +62,13 @@ class BenchmarksSyncBlockStats():
            
 
     def runBenchmark(self, program):
-        run = shlex.split("rrrun -toolpath=\"./classes/tools/trials\" -classpath=\"./DaCapo\" -array=COARSE -classes=\"-.*TeeOutputStream.*\" -classes=\"-SyncBlocksStats.*\" -classes=\"-.*ScriptEngine.*\" -tool=SyncBlocksStats Harness " +program)
+        run = shlex.split("rrrun -toolpath=\"./classes/tools/trials\" -classpath=\"./DaCapo\" -classes=\"-.*TeeOutputStream.*\" -classes=\"-SyncBlocksStats.*\" -classes=\"-.*ScriptEngine.*\" -tool=SyncBlocksStats Harness " + program)
         runOutput = subprocess.Popen(run, stdout=subprocess.PIPE)
+        runOutput.wait();
+
         parseOutput = subprocess.Popen(["grep", "result"], stdin=runOutput.stdout, stdout=subprocess.PIPE)
-    
+        parseOutput.wait();
+
         result = list()
 
         expression = parseOutput.stdout.readline() + parseOutput.stdout.readline() + parseOutput.stdout.readline() + parseOutput.stdout.readline()
