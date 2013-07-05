@@ -7,13 +7,13 @@ public class SyncBlockTest17 {
 	
 	public synchronized void read(){
 		synchronized(in){
-			int y = in.x;
+			in.x = 6;
 		}
 	}
 	
 	public synchronized void write(){
 		synchronized(in){
-			in.x++;
+			in = new Inner();
 		}
 	}
 	

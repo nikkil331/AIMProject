@@ -21,7 +21,10 @@ public class SyncBlockTest16 {
 	
 	public synchronized void write(){
 		synchronized(arr[1]){
-			arr[1][2]++;
+			arr[1] = new Integer[5];
+			for(int i = 0; i < 5; i++){
+				arr[1][i] = 1 + i;
+			}
 		}
 	}
 	public synchronized void neither(){ int y = 5;}

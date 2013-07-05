@@ -1,11 +1,14 @@
 
 public class SyncBlockTest28 {
-	public static Integer x = 0;
+	public static Object x = new Object();
 	public static synchronized void readX(){
-		int y = x;
+		synchronized(x){
+			Object o = x;
+		}
 	}
 	public static synchronized void writeX(){
-		x++;
+		synchronized(x){
+			x = new Object();}
 	}
 	public static void main(String[] args){
 		SyncBlockTest28 sbt = new SyncBlockTest28();

@@ -8,13 +8,14 @@ public class SyncBlockTest11 {
 		public void run(){
 			SyncBlockTest11 sbt = new SyncBlockTest11();
 			synchronized(sbt){
-				sbt.x++;
+				sbt = new SyncBlockTest11();
 			}
 		}
 	}
 	public static void main(String[] args){
-		ExecutorService executor = Executors.newFixedThreadPool(100);
-		for(int i = 0; i < 100; i ++){
+		int numThreads = 2;
+		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+		for(int i = 0; i < numThreads; i ++){
 			executor.execute(new Test());
 		}
 		executor.shutdown();

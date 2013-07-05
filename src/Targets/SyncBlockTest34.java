@@ -2,34 +2,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 
-public class SyncBlockTest13{
-	String x = "string";
-	public void read(){
-		String s = x;
-	}
+public class SyncBlockTest34 {
+	Object o = new Object();
 	public void write(){
-		x = "new string";
-	}
-	public void neither(){
-		int y = 5;
+		o = new Object();
 	}
 	private static class Test implements Runnable{
 		@Override
 		public void run() {
-			SyncBlockTest13 sbt1 = new SyncBlockTest13();
-			SyncBlockTest13 sbt2 = new SyncBlockTest13();
-			SyncBlockTest13 sbt3 = new SyncBlockTest13();
+			SyncBlockTest34 sbt1 = new SyncBlockTest34();
 			
-			synchronized(sbt1.x){
-				sbt1.read();
-				synchronized(sbt2){
-					sbt1.write();
-					sbt2.neither();
-					synchronized(sbt3){
-						sbt2.read();
-						sbt3.neither();
-					}
-				}
+			synchronized(sbt1.o){
+				sbt1.write();
 			}
 		}
 	}

@@ -1,4 +1,6 @@
 public class SyncBlockTest9 {
+	One one = new One();
+	Two two = new Two();
 	private class One{
 		int x;
 	}
@@ -9,14 +11,12 @@ public class SyncBlockTest9 {
 	
 	public static void main(String[] args){
 		SyncBlockTest9 sbt = new SyncBlockTest9();
-		One one = sbt.new One();
-		Two two = sbt.new Two();
-		
-		synchronized(one){
-			int a = one.x;
-			synchronized(two){
-				one.x = 5;
-				int b = two.x;
+				
+		synchronized(sbt.one){
+			sbt.one.x = 5;
+			synchronized(sbt.two){
+				sbt.one = sbt.new One();
+				sbt.two.x = 3;
 			}
 		}
 	}
