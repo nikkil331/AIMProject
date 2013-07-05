@@ -4,7 +4,8 @@ import shlex
 
 class SyncBlockTests(unittest.TestCase):
 
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         getTool = shlex.split("bash getToolFromEclipse SyncBlocksStats")
         p = subprocess.Popen(getTool)
         p.wait(); 
@@ -12,10 +13,11 @@ class SyncBlockTests(unittest.TestCase):
         return 
 
     def parseOutput(self, out):
-        find = subprocess.Popen(["grep", "result.append"], stdin=out, stdout=subprocess.PIPE)
+        grep = shlex.split("grep result\ =\ {")
+        find = subprocess.Popen(grep, stdin=out, stdout=subprocess.PIPE)
         output = find.stdout.readline() + find.stdout.readline() + find.stdout.readline() + find.stdout.readline()
         
-        result = list();
+        result = {};
         exec output
         return result
 
@@ -29,10 +31,10 @@ class SyncBlockTests(unittest.TestCase):
        
         resultList = self.parseOutput(runner.stdout)
         
-        self.assertEqual(resultList[0], 1)
-        self.assertEqual(resultList[1], 0)
-        self.assertEqual(resultList[2], 1)
-        self.assertEqual(resultList[3], 0)
+        self.assertEqual(resultList["total"], 1)
+        self.assertEqual(resultList["read"], 1)
+        self.assertEqual(resultList["write"], 0)
+        self.assertEqual(resultList["neither"], 0)
         return 
     
     def test_read_only(self):
@@ -45,10 +47,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
         
-        self.assertEqual(resultList[0], 1)
-        self.assertEquals(resultList[1], 1)
-        self.assertEquals(resultList[2], 0)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 1)
+        self.assertEquals(resultList["read"], 1)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 0)
 
     def test_neither(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest3")
@@ -60,12 +62,12 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
         
-        self.assertEqual(resultList[0], 1)
-        self.assertEquals(resultList[1], 0)
-        self.assertEquals(resultList[2], 0)
-        self.assertEquals(resultList[3], 1)
+        self.assertEqual(resultList["total"], 1)
+        self.assertEquals(resultList["read"], 0)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 1)
 
-    def test_write_only(self):
+    def test_writefield_only(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest4")
         p = subprocess.Popen(getTestClass);
         p.wait();
@@ -75,12 +77,12 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
         
-        self.assertEqual(resultList[0], 1)
-        self.assertEquals(resultList[1], 0)
-        self.assertEquals(resultList[2], 1)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 1)
+        self.assertEquals(resultList["read"], 1)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 0)
         
-    def test_one_each(self):
+    def test_wrfield(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest5")
         p = subprocess.Popen(getTestClass);
         p.wait();
@@ -90,10 +92,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
         
-        self.assertEqual(resultList[0], 3)
-        self.assertEquals(resultList[1], 1)
-        self.assertEquals(resultList[2], 1)
-        self.assertEquals(resultList[3], 1)
+        self.assertEqual(resultList["total"], 3)
+        self.assertEquals(resultList["read"], 2)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 1)
         
     def test_no_blocks(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest6")
@@ -105,10 +107,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
         
-        self.assertEqual(resultList[0], 0)
-        self.assertEquals(resultList[1], 0)
-        self.assertEquals(resultList[2], 0)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 0)
+        self.assertEquals(resultList["read"], 0)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 0)
 
     def test_three_thread_read(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest7")
@@ -120,12 +122,12 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
         
-        self.assertEqual(resultList[0], 3)
-        self.assertEquals(resultList[1], 3)
-        self.assertEquals(resultList[2], 0)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 3)
+        self.assertEquals(resultList["read"], 3)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 0)
 
-    def test_three_thread_write(self):
+    def test_three_thread_writefield(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest8")
         p = subprocess.Popen(getTestClass);
         p.wait()
@@ -135,10 +137,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
         
-        self.assertEqual(resultList[0], 3)
-        self.assertEquals(resultList[1], 0)
-        self.assertEquals(resultList[2], 3)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 3)
+        self.assertEquals(resultList["read"], 3)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 0)
 
     def test_two_nested(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest9")
@@ -150,12 +152,12 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
         
-        self.assertEqual(resultList[0], 2)
-        self.assertEquals(resultList[1], 1)
-        self.assertEquals(resultList[2], 1)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 2)
+        self.assertEquals(resultList["read"], 1)
+        self.assertEquals(resultList["write"], 1)
+        self.assertEquals(resultList["neither"], 0)
 
-    def test_multithreaded_all(self):
+    def test_multithreaded(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest10")
         p = subprocess.Popen(getTestClass);
         p.wait()
@@ -165,25 +167,25 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 30)
-        self.assertEquals(resultList[1], 10)
-        self.assertEquals(resultList[2], 10)
-        self.assertEquals(resultList[3], 10)
+        self.assertEqual(resultList["total"], 30)
+        self.assertEquals(resultList["read"], 20)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 10)
 
-    def test_100threads_write(self):
-        getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest11")
-        p = subprocess.Popen(getTestClass);
-        p.wait()
+    #def test_100threads_write(self):
+    #   getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest11")
+    #   p = subprocess.Popen(getTestClass);
+    #   p.wait()
 
-        runRR = shlex.split("rrrun -maxTid=150 -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-.*SyncBlocksStats.*\" -classes=\"-ScriptEngine.*\" -tool=SyncBlocksStats SyncBlockTest11")
-        runner = subprocess.Popen(runRR, stdout=subprocess.PIPE)
+    #   runRR = shlex.split("rrrun -maxTid=150 -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-.*SyncBlocksStats.*\" -classes=\"-ScriptEngine.*\" -tool=SyncBlocksStats SyncBlockTest11")
+    #   runner = subprocess.Popen(runRR, stdout=subprocess.PIPE)
 
-        resultList = self.parseOutput(runner.stdout)
+    #   resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 100)
-        self.assertEquals(resultList[1], 0)
-        self.assertEquals(resultList[2], 100)
-        self.assertEquals(resultList[3], 0)
+    #   self.assertEqual(resultList["total"], 100)
+    #   self.assertEquals(resultList["read"], 0)
+    #   self.assertEquals(resultList["write"], 100)
+    #   self.assertEquals(resultList["neither"], 0)
     
     def test_multithreaded_nested1(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest12")
@@ -195,10 +197,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 30)
-        self.assertEquals(resultList[1], 10)
-        self.assertEquals(resultList[2], 10)
-        self.assertEquals(resultList[3], 10)
+        self.assertEqual(resultList["total"], 30)
+        self.assertEquals(resultList["read"], 20)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 10)
     
     def test_multithreaded_nested2(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest13")
@@ -210,10 +212,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 300)
-        self.assertEquals(resultList[1], 100)
-        self.assertEquals(resultList[2], 100)
-        self.assertEquals(resultList[3], 100)
+        self.assertEqual(resultList["total"], 300)
+        self.assertEquals(resultList["read"], 100)
+        self.assertEquals(resultList["write"], 100)
+        self.assertEquals(resultList["neither"], 100)
 
     def test_Integer_fields(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest14")
@@ -225,10 +227,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 30)
-        self.assertEquals(resultList[1], 10)
-        self.assertEquals(resultList[2], 10)
-        self.assertEquals(resultList[3], 10)
+        self.assertEqual(resultList["total"], 30)
+        self.assertEquals(resultList["read"], 20)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 10)
     
     def test_multithreaded_arrayfield(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest15")
@@ -240,10 +242,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 200)
-        self.assertEquals(resultList[1], 150)
-        self.assertEquals(resultList[2], 50)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 200)
+        self.assertEquals(resultList["read"], 150)
+        self.assertEquals(resultList["write"], 50)
+        self.assertEquals(resultList["neither"], 0)
 
     def test_multithreaded_nestedarray(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest16")
@@ -255,10 +257,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 1250)
-        self.assertEquals(resultList[1], 750)
-        self.assertEquals(resultList[2], 250)
-        self.assertEquals(resultList[3], 250)
+        self.assertEqual(resultList["total"], 1250)
+        self.assertEquals(resultList["read"], 750)
+        self.assertEquals(resultList["write"], 250)
+        self.assertEquals(resultList["neither"], 250)
 
     def test_multithreaded_objectfield(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest17")
@@ -270,10 +272,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 400)
-        self.assertEquals(resultList[1], 300)
-        self.assertEquals(resultList[2], 100)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 400)
+        self.assertEquals(resultList["read"], 300)
+        self.assertEquals(resultList["write"], 100)
+        self.assertEquals(resultList["neither"], 0)
     
     def test_syncOnWritten_field(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest18")
@@ -285,10 +287,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 1)
-        self.assertEquals(resultList[1], 0)
-        self.assertEquals(resultList[2], 1)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 1)
+        self.assertEquals(resultList["read"], 0)
+        self.assertEquals(resultList["write"], 1)
+        self.assertEquals(resultList["neither"], 0)
     
     def test_syncOnWritten_object(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest19")
@@ -300,10 +302,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 1)
-        self.assertEquals(resultList[1], 0)
-        self.assertEquals(resultList[2], 1)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 1)
+        self.assertEquals(resultList["read"], 0)
+        self.assertEquals(resultList["write"], 1)
+        self.assertEquals(resultList["neither"], 0)
 
     def test_volatile_rwn(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest20")
@@ -315,10 +317,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 30)
-        self.assertEquals(resultList[1], 10)
-        self.assertEquals(resultList[2], 10)
-        self.assertEquals(resultList[3], 10)
+        self.assertEqual(resultList["total"], 30)
+        self.assertEquals(resultList["read"], 20)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 10)
 
     def test_get_set(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest21")
@@ -330,10 +332,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 2)
-        self.assertEquals(resultList[1], 1)
-        self.assertEquals(resultList[2], 1)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 2)
+        self.assertEquals(resultList["read"], 2)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 0)
 
     def test_syncOnWritten_array(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest22")
@@ -345,10 +347,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 1)
-        self.assertEquals(resultList[1], 0)
-        self.assertEquals(resultList[2], 1)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 1)
+        self.assertEquals(resultList["read"], 0)
+        self.assertEquals(resultList["write"], 1)
+        self.assertEquals(resultList["neither"], 0)
 
     def test_syncOn_private(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest23")
@@ -360,10 +362,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 1)
-        self.assertEquals(resultList[1], 0)
-        self.assertEquals(resultList[2], 1)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 1)
+        self.assertEquals(resultList["read"], 0)
+        self.assertEquals(resultList["write"], 1)
+        self.assertEquals(resultList["neither"], 0)
     
     def test_multithreaded_syncOnField(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest24")
@@ -375,12 +377,12 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 60)
-        self.assertEquals(resultList[1], 20)
-        self.assertEquals(resultList[2], 20)
-        self.assertEquals(resultList[3], 20)
+        self.assertEqual(resultList["total"], 60)
+        self.assertEquals(resultList["read"], 20)
+        self.assertEquals(resultList["write"], 20)
+        self.assertEquals(resultList["neither"], 20)
 
-    def test_multithreaded_synOnArray(self):
+    def test_multithreaded_syncOnArray(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest25")
         p = subprocess.Popen(getTestClass);
         p.wait()
@@ -390,10 +392,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 30)
-        self.assertEquals(resultList[1], 10)
-        self.assertEquals(resultList[2], 10)
-        self.assertEquals(resultList[3], 10)
+        self.assertEqual(resultList["total"], 30)
+        self.assertEquals(resultList["read"], 10)
+        self.assertEquals(resultList["write"], 10)
+        self.assertEquals(resultList["neither"], 10)
 
     def test_methodCalls(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest26")
@@ -405,10 +407,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 2)
-        self.assertEquals(resultList[1], 2)
-        self.assertEquals(resultList[2], 0)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 2)
+        self.assertEquals(resultList["read"], 2)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 0)
 
     def test_syncOn_static(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest27")
@@ -420,10 +422,10 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 1)
-        self.assertEquals(resultList[1], 0)
-        self.assertEquals(resultList[2], 1)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 1)
+        self.assertEquals(resultList["read"], 0)
+        self.assertEquals(resultList["write"], 1)
+        self.assertEquals(resultList["neither"], 0)
 
     def test_write_staticField(self):
         getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest28")
@@ -435,13 +437,88 @@ class SyncBlockTests(unittest.TestCase):
 
         resultList = self.parseOutput(runner.stdout)
 
-        self.assertEqual(resultList[0], 2)
-        self.assertEquals(resultList[1], 1)
-        self.assertEquals(resultList[2], 1)
-        self.assertEquals(resultList[3], 0)
+        self.assertEqual(resultList["total"], 4)
+        self.assertEquals(resultList["read"], 3)
+        self.assertEquals(resultList["write"], 1)
+        self.assertEquals(resultList["neither"], 0)
+    #    
+    #def test_syncOn_write_local(self):
+    #   getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest29")
+    #   p = subprocess.Popen(getTestClass);
+    #   p.wait()
+
+    #   runRR = shlex.split("rrrun -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-SyncBlocksStats.*\" -classes=\"-.*ScriptEngine.*\" -tool=SyncBlocksStats SyncBlockTest29")
+    #   runner = subprocess.Popen(runRR, stdout=subprocess.PIPE)
+
+    #   resultList = self.parseOutput(runner.stdout)
+
+    #   self.assertEqual(resultList["total"], 1)
+    #   self.assertEquals(resultList["read"], 0)
+    #   self.assertEquals(resultList["write"], 1)
+    #   self.assertEquals(resultList["neither"], 0)
+        
+    #def test_local_access(self):
+    #   getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest30")
+    #   p = subprocess.Popen(getTestClass);
+    #   p.wait()
+
+    #   runRR = shlex.split("rrrun -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-SyncBlocksStats.*\" -classes=\"-.*ScriptEngine.*\" -tool=SyncBlocksStats SyncBlockTest30")
+    #   runner = subprocess.Popen(runRR, stdout=subprocess.PIPE)
+
+    #   resultList = self.parseOutput(runner.stdout)
+
+    #   self.assertEqual(resultList["total"], 1)
+    #   self.assertEquals(resultList["read"], 0)
+    #   self.assertEquals(resultList["write"], 1)
+    #   self.assertEquals(resultList["neither"], 0)
+        
+    def test_sync_this(self):
+        getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest31")
+        p = subprocess.Popen(getTestClass);
+        p.wait()
+
+        runRR = shlex.split("rrrun -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-SyncBlocksStats.*\" -classes=\"-.*ScriptEngine.*\" -tool=SyncBlocksStats SyncBlockTest31")
+        runner = subprocess.Popen(runRR, stdout=subprocess.PIPE)
+
+        resultList = self.parseOutput(runner.stdout)
+
+        self.assertEqual(resultList["total"], 1)
+        self.assertEquals(resultList["read"], 1)
+        self.assertEquals(resultList["write"], 0)
+        self.assertEquals(resultList["neither"], 0)
+
+    def test_serial_triplyNested(self):
+        getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest33")
+        p = subprocess.Popen(getTestClass);
+        p.wait()
+
+        runRR = shlex.split("rrrun -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-SyncBlocksStats.*\" -classes=\"-.*ScriptEngine.*\" -tool=SyncBlocksStats SyncBlockTest33")
+        runner = subprocess.Popen(runRR, stdout=subprocess.PIPE)
+
+        resultList = self.parseOutput(runner.stdout)
+
+        self.assertEqual(resultList["total"], 300)
+        self.assertEquals(resultList["read"], 100)
+        self.assertEquals(resultList["write"], 100)
+        self.assertEquals(resultList["neither"], 100)
+        
+    def test_multithreaded_write(self):
+        getTestClass = shlex.split("bash getTargetFromEclipse -t SyncBlockTest34")
+        p = subprocess.Popen(getTestClass);
+        p.wait()
+
+        runRR = shlex.split("rrrun -maxTid=150 -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-SyncBlocksStats.*\" -classes=\"-.*ScriptEngine.*\" -tool=SyncBlocksStats SyncBlockTest34")
+        runner = subprocess.Popen(runRR, stdout=subprocess.PIPE)
+
+        resultList = self.parseOutput(runner.stdout)
+
+        self.assertEqual(resultList["total"], 100)
+        self.assertEquals(resultList["read"], 0)
+        self.assertEquals(resultList["write"], 100)
+        self.assertEquals(resultList["neither"], 0)
 
 
-    
+
 
 
 
