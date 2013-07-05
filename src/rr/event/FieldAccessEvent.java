@@ -53,7 +53,7 @@ public class FieldAccessEvent extends AccessEvent {
 	protected FieldAccessInfo info; 
 
 	/** RoadRunner internal field. */
-	protected AbstractFieldUpdater updater;
+        protected AbstractFieldUpdater updater;
 
 	public FieldAccessEvent(ShadowThread td) {
 		super(td);
