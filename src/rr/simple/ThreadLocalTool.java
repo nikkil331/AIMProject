@@ -74,7 +74,7 @@ final public class ThreadLocalTool extends Tool {
 	@Override
 	public void volatileAccess(VolatileAccessEvent fae) {
 		ShadowVar g = fae.getOriginalShadow();
-		if (g != fae.getThread()) {
+		if (g != fae.getThread()) {   
 			if (g instanceof ShadowThread) {
 				advance(fae);
 				super.volatileAccess(fae);
