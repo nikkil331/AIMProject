@@ -9,6 +9,8 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
+import rr.instrument.Constants;
+
 import rr.RRMain;
 import rr.meta.ClassInfo;
 
@@ -120,7 +122,7 @@ public class SyncBlocksStats extends Tool {
 			} 
 		}
 		
-		Object self = null;
+		/*Object self = null;
 		synchronized(engine){
 			self = getLocationAccessed(ae, target);
 		
@@ -131,6 +133,11 @@ public class SyncBlocksStats extends Tool {
 					System.out.println("thread " + ae.getThread().getTid() + (ae.isWrite() ? " wrote" : " read ") + " null self");
 				}
 			}
+		}*/
+		
+		Object self = null;
+		if(ae.getKind() == AccessEvent.Kind.FIELD){
+			self = ((FieldAccessEvent)ae).getAccessed();
 		}
 		
 		for(AccessTracker at : localLocks){
@@ -184,6 +191,7 @@ public class SyncBlocksStats extends Tool {
 			accessed = "target[" + Integer.toString(((ArrayAccessEvent)ae).getIndex()) + "]"; 
 		}
 		
+		
 		Object self = null;
 		engine.put("target", target);
 		
@@ -204,6 +212,7 @@ public class SyncBlocksStats extends Tool {
 		
 		return self;
 	}
+	
 	
 	@Override
 	public void volatileAccess(VolatileAccessEvent e){
