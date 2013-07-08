@@ -1,0 +1,104 @@
+import java.util.Stack;
+
+import acme.util.decorations.Decoration;
+import acme.util.decorations.DecorationFactory;
+import acme.util.decorations.DefaultValue;
+import acme.util.option.CommandLine;
+import rr.tool.Tool;
+import rr.event.AccessEvent;
+import rr.event.AcquireEvent;
+import rr.event.ReleaseEvent;
+import rr.state.ShadowThread;
+import rr.state.ShadowVar;
+
+
+public class SyncBlocksStats extends Tool {
+	
+	private static Integer  Total = new Integer(0);
+	private static Integer Read = new Integer(0);
+	private static Integer Write = new Integer(0);
+	private static Integer None = new Integer(0);
+	
+	private static DecorationFactory<ShadowThread> fac = new DecorationFactory<ShadowThread>();
+	private static Decoration<ShadowThread, Stack<AccessTracker>> locks =fac.make("locks", DecorationFactory.Type.SINGLE, 
+				new DefaultValue<ShadowThread, Stack<AccessTracker>>(){
+					public Stack<AccessTracker> get(ShadowThread t) { return new Stack<AccessTracker>();}
+			}); 
+	
+	private class AccessTracker{
+		Object o;
+		boolean r = false;
+		boolean w = false;
+		
+		public AccessTracker(Object o){
+			this.o = o;
+		}
+	}
+		
+	public SyncBlocksStats(String name, Tool next, CommandLine commandLine) {
+		super(name, next, commandLine);	
+	}
+	
+	@Override
+	public void acquire(AcquireEvent ae){
+		System.out.println("lock acquired");
+		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
+	      
+		synchronized(locks){
+			localLocks.push(new AccessTracker(ae.getLock().getLock()));
+			System.out.println("lock added");
+		}
+		synchronized(Total){
+			Total++;
+		}
+	}
+	@Override
+	public void release(ReleaseEvent re){
+		System.out.println("lock released");
+		Stack<AccessTracker> localLocks = locks.get(re.getThread());
+		synchronized(locks){
+			AccessTracker at = localLocks.pop();
+			if(at.w){
+				synchronized(Write){
+					Write++;
+				}
+			}
+			else if(at.r){
+				synchronized(Read){
+					Read++;
+				}
+			}
+			else{
+				synchronized(None){
+					None++;
+				}
+			}
+		}
+	}
+	@Override
+	public void access(AccessEvent ae){
+		System.out.println("Access Target = " + ae.getTarget().toString());
+		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
+		System.out.println("Number of thread local locks = " + localLocks.size());
+		for(AccessTracker at : localLocks){
+			System.out.println("Access Tracker = " + at.toString());
+			if (at == ae.getTarget()){
+				
+				if(ae.isWrite()){
+					at.w = true;
+				}
+				else{
+					at.r = true;
+				}
+			}
+		}
+	}
+	
+	@Override
+	public void fini(){
+		System.out.println("Total synchronized blocks = " + Total);
+		System.out.println("Number of synchronized blocks that read = " + Read);
+		System.out.println("Numberof synchronized blocks that wrote = " + Write);
+		System.out.println("Number of synchronized blocks that neither read nor wrote = " + None);
+	}
+}

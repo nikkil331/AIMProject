@@ -1,35 +1,16 @@
-import java.io.File;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.util.Arrays;
 import java.util.Stack;
-
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
-
-import rr.instrument.Constants;
-
-import rr.RRMain;
 import rr.meta.ClassInfo;
-
 import acme.util.decorations.Decoration;
 import acme.util.decorations.DecorationFactory;
 import acme.util.decorations.DefaultValue;
-import acme.util.io.URLUtils;
 import acme.util.option.CommandLine;
-import rr.tool.RR;
 import rr.tool.Tool;
 import rr.event.AccessEvent;
 import rr.event.AcquireEvent;
-import rr.event.ArrayAccessEvent;
-import rr.event.ClassInitializedEvent;
 import rr.event.FieldAccessEvent;
 import rr.event.MethodEvent;
 import rr.event.ReleaseEvent;
 import rr.event.VolatileAccessEvent;
-import rr.state.ShadowLock;
 import rr.state.ShadowThread;
 import rr.state.ShadowVar;
 
@@ -38,18 +19,20 @@ public class SyncBlocksStats extends Tool {
 	
 	private static boolean testOutput = false;
 	
-	private static Integer  Total = new Integer(0);
-	private static Integer Read = new Integer(0);
-	private static Integer Write = new Integer(0);
-	private static Integer None = new Integer(0);
-	
-	private static ScriptEngine engine;
+	private Counter count = new Counter();
 	
 	private static DecorationFactory<ShadowThread> fac = new DecorationFactory<ShadowThread>();
 	private static Decoration<ShadowThread, Stack<AccessTracker>> locks =fac.make("locks", DecorationFactory.Type.SINGLE, 
 				new DefaultValue<ShadowThread, Stack<AccessTracker>>(){
 					public Stack<AccessTracker> get(ShadowThread t) { return new Stack<AccessTracker>();}
 			}); 
+	
+	private static class Counter{
+		static Integer  Total = new Integer(0);
+		static Integer Read = new Integer(0);
+		static Integer Write = new Integer(0);
+		static Integer None = new Integer(0);
+	}
 	
 	private class AccessTracker{
 		Object o;
@@ -63,9 +46,6 @@ public class SyncBlocksStats extends Tool {
 		
 	public SyncBlocksStats(String name, Tool next, CommandLine commandLine) {
 		super(name, next, commandLine);
-		
-		ScriptEngineManager manager = new ScriptEngineManager();
-		engine = manager.getEngineByName("js");
 	}
 	
 	@Override
@@ -78,8 +58,8 @@ public class SyncBlocksStats extends Tool {
 		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
 		localLocks.push(new AccessTracker(ae));
 		
-		synchronized(Total){
-			Total++;
+		synchronized(count){
+			count.Total++;
 		}
 	}
 	@Override
@@ -91,19 +71,15 @@ public class SyncBlocksStats extends Tool {
 		Stack<AccessTracker> localLocks = locks.get(re.getThread());
 		
 		AccessTracker at = localLocks.pop();
-		if(at.w){
-			synchronized(Write){
-				Write++;
+		synchronized(count){
+			if(at.w){
+				count.Write++;
 			}
-		}
-		else if(at.r){
-			synchronized(Read){
-				Read++;
+			else if(at.r){
+				count.Read++;
 			}
-		}
-		else{
-			synchronized(None){
-				None++;
+			else{
+				count.None++;
 			}
 		}
 	}
@@ -112,31 +88,10 @@ public class SyncBlocksStats extends Tool {
 		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
 		
 		Object target = ae.getTarget();
-		if(target == null){
-			try {
-				ClassInfo cinfo = ae.getAccessInfo().getEnclosing().getOwner();
-				
-				target = Class.forName(cinfo.getName().replace('/', '.'), false, RRMain.loader);
-			} catch (ClassNotFoundException e) {
-				e.printStackTrace();
-			} 
-		}
-		
-		/*Object self = null;
-		synchronized(engine){
-			self = getLocationAccessed(ae, target);
-		
-			if(testOutput){
-				if(self != null){
-					System.out.println("thread " + ae.getThread().getTid() + (ae.isWrite() ? " wrote " : " read " ) + self.toString());}
-				else {
-					System.out.println("thread " + ae.getThread().getTid() + (ae.isWrite() ? " wrote" : " read ") + " null self");
-				}
-			}
-		}*/
 		
 		Object self = null;
-		if(ae.getKind() == AccessEvent.Kind.FIELD){
+		
+		if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
 			self = ((FieldAccessEvent)ae).getAccessed();
 		}
 		
@@ -153,65 +108,12 @@ public class SyncBlocksStats extends Tool {
 				at.r = true;
 			}
 			else if(at.o instanceof Class){
-				if(at.o.toString().equals(target.toString())) at.r = true;
+				ClassInfo cinfo = ae.getAccessInfo().getEnclosing().getOwner();
+				if(at.o.toString().equals(cinfo.getName())) at.r = true;
 			}
 		}
 	}
-	public Object getLocationAccessed(AccessEvent ae, Object target){
-
-		String accessed = "";
-		if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
-			String field = "\"" + ((FieldAccessEvent)ae).getInfo().getField().getName() + "\"";
-			
-			//if field is static
-			if(target instanceof Class){
-				String classpath = Arrays.toString(URLUtils.getURLArrayFromString(System.getProperty("user.dir"),
-						RR.classPathOption.get()));
-				/*accessed = "var importer = new JavaImporter(Packages." + ((Class)target).getName() + ") \n" +
-								  "with(importer) {\n" +
-								  	 ((Class)target).getName() + "[" + field + "]\n" +
-								  "}";*/
-				accessed = "importPackage(Packages." + ((Class)target).getName() + ") \n" +
-							((Class)target).getName() + "[" + field + "]\n";
-				System.out.println(accessed);
-				/*try {
-					target = ((Class)target).newInstance();
-					accessed = "target[" + field + "]";
-				} catch (InstantiationException e) {
-					accessed = "target";
-					e.printStackTrace();
-				} catch (IllegalAccessException e) {
-					accessed = "target";
-					e.printStackTrace();
-				}*/
-			}
-			else {accessed = "target[" + field + "]";}
-		}
-		if(ae.getKind() == AccessEvent.Kind.ARRAY){
-			accessed = "target[" + Integer.toString(((ArrayAccessEvent)ae).getIndex()) + "]"; 
-		}
-		
-		
-		Object self = null;
-		engine.put("target", target);
-		
-		
-		
-		try {
-			self = engine.eval(accessed);
-		
-			if(testOutput){
-				System.out.println("Expression attempted was = " + accessed + " where target = " + target.toString() + " in thread " + ae.getThread().getTid());
-				if(self == null) {
-					System.out.println("Engine evaluated self to null");
-				}
-			}
-		}catch (ScriptException e) {
-			e.printStackTrace();
-		}
-		
-		return self;
-	}
+	
 	
 	
 	@Override
@@ -221,13 +123,6 @@ public class SyncBlocksStats extends Tool {
 	@Override
 	public ShadowVar makeShadowVar(AccessEvent ae){
 		return new ShadowVar(){};
-	}
-	
-	@Override
-	public void classInitialized(ClassInitializedEvent e){
-		if(testOutput){
-			System.out.println(e.getRRClass().getName() + " was initialized");
-		}
 	}
 	
 	@Override
@@ -246,6 +141,8 @@ public class SyncBlocksStats extends Tool {
 	
 	@Override
 	public void fini(){
-		System.out.printf("result = {\"total\" : %d , \"read\" : %d, \"write\" : %d, \"neither\" : %d}\n", Total, Read, Write, None);
+		synchronized(count){
+			System.out.printf("result = {\"total\" : %d , \"read\" : %d, \"write\" : %d, \"neither\" : %d}\n", count.Total, count.Read, count.Write, count.None);
+		}
 	}
 }
