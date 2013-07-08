@@ -88,12 +88,8 @@ public class SyncBlocksStats extends Tool {
 		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
 		
 		Object target = ae.getTarget();
-		
-		Object self = null;
-		
-		if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
-			self = ((FieldAccessEvent)ae).getAccessed();
-		}
+
+		Object self = ae.getAccessed();
 		
 		for(AccessTracker at : localLocks){
 			if (at.o == self){
