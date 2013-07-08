@@ -91,7 +91,7 @@ public class SyncBlocksStats extends Tool {
 		Object target = ae.getTarget();
 
 		Object self = ae.getAccessed();
-		System.out.println(self);
+		
 		for(AccessTracker at : localLocks){
 			if (at.o == self){
 				if(ae.isWrite()){
