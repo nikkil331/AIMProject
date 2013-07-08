@@ -50,6 +50,7 @@ public class SyncBlocksStats extends Tool {
 	
 	@Override
 	public void acquire(AcquireEvent ae){
+		
 		if(testOutput){
 			System.out.println("thread " + ae.getThread().getTid() + " acquired " + ae.getLock().getLock().toString());
 		}
@@ -90,7 +91,7 @@ public class SyncBlocksStats extends Tool {
 		Object target = ae.getTarget();
 
 		Object self = ae.getAccessed();
-		
+		System.out.println(self);
 		for(AccessTracker at : localLocks){
 			if (at.o == self){
 				if(ae.isWrite()){
@@ -104,8 +105,9 @@ public class SyncBlocksStats extends Tool {
 				at.r = true;
 			}
 			else if(at.o instanceof Class){
+				Class<?> heldClass = (Class<?>)at.o;
 				ClassInfo cinfo = ae.getAccessInfo().getEnclosing().getOwner();
-				if(at.o.toString().equals(cinfo.getName())) at.r = true;
+				if(heldClass.getName().equals(cinfo.getName())) at.r = true;
 			}
 		}
 	}
