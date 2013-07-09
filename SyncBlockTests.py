@@ -252,7 +252,7 @@ class SyncBlockTests(unittest.TestCase):
         p = subprocess.Popen(getTestClass);
         p.wait()
 
-        runRR = shlex.split("rrrun -maxTid=60 -array=FINE -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-.*SyncBlocksStats.*\" -classes=\" -tool=SyncBlocksStats SyncBlockTest16")
+        runRR = shlex.split("rrrun -maxTid=60 -array=FINE -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-.*SyncBlocksStats.*\" -tool=SyncBlocksStats SyncBlockTest16")
         runner = subprocess.Popen(runRR, stdout=subprocess.PIPE)
 
         resultList = self.parseOutput(runner.stdout)
@@ -537,7 +537,7 @@ class SyncBlockTests(unittest.TestCase):
         p = subprocess.Popen(getTestClass);
         p.wait()
 
-        runRR = shlex.split("rrrun -array=FINE -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-SyncBlocksStats.*\" -tool=SyncBlocksStats SyncBlockTest35")
+        runRR = shlex.split("rrrun -array=FINE -classpath=\"./src/Targets\" -toolpath=\"./classes/tools/trials\" -classes=\"-SyncBlocksStats.*\" -tool=SyncBlocksStats SyncBlockTest36")
         runner = subprocess.Popen(runRR, stdout=subprocess.PIPE)
 
         resultList = self.parseOutput(runner.stdout)
