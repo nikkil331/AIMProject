@@ -4,12 +4,15 @@ no_verify="-noverify"
 new_JVM_ARGS=$JVM_ARGS" "$no_verify
 export JVM_ARGS=$new_JVM_ARGS
 
-rrArgs="-array=FINE -classes=\"-SyncBlocksStats.*\"-classes=\"-Harness\" -classes=\"-org.dacapo.harness.*\" -classes=\"-org.dacapo.parser.*\""
+rrArgs="-array=FINE -classes=-SyncBlocksStats.* -classes=-Harness -classes=-org.dacapo.harness.* -classes=-org.dacapo.parser.*"
 forTomcat="-multiLoader -shadowThread=-.* -maxTid=64"
 
 bm=$1
 
-if($bm == "tomcat")
-   rrArgs=$rrArgs" "$forTomcat
+if [ $bm == "tomcat" ]
+   then rrArgs=$rrArgs" "$forTomcat
 fi
-rrrun $rrargs -toolpath=classes/tools/trials -classpath=DaCapo/dacapo-9.12-bach.jar -tool=SyncBlocksStats Harness $bm
+
+echo $rrArgs
+
+rrrun $rrArgs -toolpath=classes/tools/trials -classpath=DaCapo/dacapo-9.12-bach.jar -tool=SyncBlocksStats Harness $bm
