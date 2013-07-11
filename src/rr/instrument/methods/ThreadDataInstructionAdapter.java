@@ -166,10 +166,10 @@ public class ThreadDataInstructionAdapter extends RRMethodAdapter implements Opc
 				AcquireInfo acquire = MetaDataInfoMaps.makeAcquire(this.getLocation(), method);
 //				Always process all sync ops --- so don't test this anymore
 //				if (!InstrumentationFilter.shouldInstrument(acquire)) {
-//					Util.log("Skipping lock acquire: " + acquire);
-//					super.visitInsn(opcode);
-//					return;
-//				} 
+//				Util.log("Skipping lock acquire: " + acquire);
+//				super.visitInsn(opcode);
+//				return;}			
+//				 
 				if (!Instrumentor.useTestAcquireOption.get()) {
 					/* Simple Version: */
 					// traget
