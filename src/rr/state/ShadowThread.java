@@ -247,11 +247,12 @@ public class ShadowThread extends Decoratable implements ShadowVar {
 		if (ld == null) {
 			ld = ShadowLock.get(lock);
 		}
-		if (ld.inc(this) == 1) {
+		//if (ld.inc(this) == 1) {
+			ld.inc(this);
 			lockDataMap[lockDataCount++] = ld;
 			return ld;
-		}
-		return null;
+		//}
+		//return null;
 	}
 
 	/**
@@ -259,11 +260,12 @@ public class ShadowThread extends Decoratable implements ShadowVar {
 	 */
 	public final ShadowLock release(Object lock) {
 		ShadowLock ld = get(lock);
-		if (ld.dec(this) == 0) {
+		//if (ld.dec(this) == 0) {
+			ld.dec(this);
 			lockDataCount--;
 			return ld;
-		}
-		return null;
+		//}
+		//return null;
 	}
 
 
