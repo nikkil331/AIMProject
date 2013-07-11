@@ -1,5 +1,8 @@
 import java.util.Stack;
+import java.util.concurrent.ConcurrentHashMap;
+
 import rr.meta.ClassInfo;
+import rr.meta.SourceLocation;
 import acme.util.decorations.Decoration;
 import acme.util.decorations.DecorationFactory;
 import acme.util.decorations.DefaultValue;
@@ -11,6 +14,7 @@ import rr.event.FieldAccessEvent;
 import rr.event.MethodEvent;
 import rr.event.ReleaseEvent;
 import rr.event.VolatileAccessEvent;
+import rr.state.ShadowLock;
 import rr.state.ShadowThread;
 import rr.state.ShadowVar;
 
@@ -19,28 +23,33 @@ public class SyncBlocksStats extends Tool {
 	
 	private static boolean testOutput = false;
 	
-	private Counter count = new Counter();
+	//private Counter count = new Counter();
 	
 	private static DecorationFactory<ShadowThread> fac = new DecorationFactory<ShadowThread>();
 	private static Decoration<ShadowThread, Stack<AccessTracker>> locks =fac.make("locks", DecorationFactory.Type.SINGLE, 
 				new DefaultValue<ShadowThread, Stack<AccessTracker>>(){
 					public Stack<AccessTracker> get(ShadowThread t) { return new Stack<AccessTracker>();}
 			}); 
+	private static ConcurrentHashMap<SourceLocation, Counter> pcMap = new ConcurrentHashMap<SourceLocation, Counter>();
 	
 	private static class Counter{
-		static Integer  Total = new Integer(0);
-		static Integer Read = new Integer(0);
-		static Integer Write = new Integer(0);
-		static Integer None = new Integer(0);
+		int  Total = 0;
+		int Read = 0;
+		int Write = 0;
+		int None = 0;
 	}
 	
 	private class AccessTracker{
+		ShadowLock lock;
 		Object o;
 		boolean r = false;
 		boolean w = false;
+		SourceLocation loc;
 		
 		public AccessTracker(AcquireEvent ae){
+			this.lock = ae.getLock();
 			this.o = ae.getLock().getLock();
+			this.loc = ae.getInfo().getLoc();
 		}
 	}
 		
@@ -50,6 +59,7 @@ public class SyncBlocksStats extends Tool {
 	
 	@Override
 	public void acquire(AcquireEvent ae){
+		System.out.println("Lock at line " + ae.getInfo().getLoc().getLine());
 		
 		if(testOutput){
 			System.out.println("thread " + ae.getThread().getTid() + " acquired " + ae.getLock().getLock().toString());
@@ -57,11 +67,17 @@ public class SyncBlocksStats extends Tool {
 		
 		
 		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
-		localLocks.push(new AccessTracker(ae));
-		
-		synchronized(count){
-			count.Total++;
+		AccessTracker at = new AccessTracker(ae);
+		Counter newCount = new Counter();
+		newCount.Total++;
+		if(pcMap.putIfAbsent(at.loc, newCount) != null){
+			Counter prevCount = pcMap.get(at.loc);
+			synchronized(prevCount){
+				prevCount.Total++;
+			}
 		}
+		
+		localLocks.push(at);
 	}
 	@Override
 	public void release(ReleaseEvent re){
@@ -72,6 +88,8 @@ public class SyncBlocksStats extends Tool {
 		Stack<AccessTracker> localLocks = locks.get(re.getThread());
 		
 		AccessTracker at = localLocks.pop();
+		Counter count = pcMap.get(at.loc);
+		
 		synchronized(count){
 			if(at.w){
 				count.Write++;
@@ -139,8 +157,14 @@ public class SyncBlocksStats extends Tool {
 	
 	@Override
 	public void fini(){
-		synchronized(count){
-			System.out.printf("result = {\"total\" : %d , \"read\" : %d, \"write\" : %d, \"neither\" : %d}\n", count.Total, count.Read, count.Write, count.None);
+		System.out.println("Number of Static Synchronized Blocks = " + pcMap.size());
+		for(SourceLocation loc : pcMap.keySet()){
+			Counter count = pcMap.get(loc);
+			synchronized(count){
+				System.out.printf("result['%s line %d'] = {\"total\" : %d , \"read\" : %d, \"write\" : %d, \"neither\" : %d}\n", 
+						loc.getFile().replace('/', '.'), loc.getLine(), count.Total, count.Read, count.Write, count.None);
+			}
 		}
+		
 	}
 }
