@@ -23,7 +23,6 @@ public class SyncBlocksStats extends Tool {
 	
 	private static boolean testOutput = false;
 	
-	//private Counter count = new Counter();
 	
 	private static DecorationFactory<ShadowThread> fac = new DecorationFactory<ShadowThread>();
 	private static Decoration<ShadowThread, Stack<AccessTracker>> locks =fac.make("locks", DecorationFactory.Type.SINGLE, 
