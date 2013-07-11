@@ -253,7 +253,7 @@ public class RREventGenerator extends RR {
 			AcquireEvent ae = td.getAcquireEvent();
 			ae.setInfo(MetaDataInfoMaps.getAcquires().get(lockAcquireId));
 			ae.setLock(ld);
-
+			
 			return getTool().testAcquire(ae);
 		} catch(Throwable e) {
 			Assert.panic(e);
