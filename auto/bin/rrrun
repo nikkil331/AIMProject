@@ -1,4 +1,0 @@
-#!/bin/bash
-           /System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/bin/java -version 
-                          echo 
-           /System/Library/Java/JavaVirtualMachines/1.6.0.jdk/Contents/Home/bin/java -javaagent:/Users/Nikki/AIMProject/RoadRunner/build/jar/rragent.jar $JVM_ARGS -Xbootclasspath/p:/Users/Nikki/AIMProject/RoadRunner/classes:/Users/Nikki/AIMProject/RoadRunner/jars/java-cup-11a.jar:$RR_TOOLPATH: rr.RRMain $*
