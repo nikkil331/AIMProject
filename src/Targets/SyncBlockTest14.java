@@ -1,10 +1,10 @@
 public class SyncBlockTest14 {
-	String x = "";
+	Integer x = 0;
 	public synchronized void read(){
-		String y = x;
+		int y = x;
 	}
 	public synchronized void write(){
-		x = "written";
+		x = 2;
 	}
 	public synchronized void neither(){
 		int y = 5;
