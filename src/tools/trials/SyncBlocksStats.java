@@ -10,7 +10,6 @@ import acme.util.option.CommandLine;
 import rr.tool.Tool;
 import rr.event.AccessEvent;
 import rr.event.AcquireEvent;
-import rr.event.FieldAccessEvent;
 import rr.event.MethodEvent;
 import rr.event.ReleaseEvent;
 import rr.event.VolatileAccessEvent;
@@ -39,14 +38,12 @@ public class SyncBlocksStats extends Tool {
 	}
 	
 	private class AccessTracker{
-		ShadowLock lock;
 		Object o;
 		boolean r = false;
 		boolean w = false;
 		SourceLocation loc;
 		
 		public AccessTracker(AcquireEvent ae){
-			this.lock = ae.getLock();
 			this.o = ae.getLock().getLock();
 			this.loc = ae.getInfo().getLoc();
 		}
@@ -58,12 +55,9 @@ public class SyncBlocksStats extends Tool {
 	
 	@Override
 	public void acquire(AcquireEvent ae){
-		System.out.println("Lock at line " + ae.getInfo().getLoc().getLine());
-		
 		if(testOutput){
 			System.out.println("thread " + ae.getThread().getTid() + " acquired " + ae.getLock().getLock().toString());
 		}
-		
 		
 		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
 		AccessTracker at = new AccessTracker(ae);
@@ -103,6 +97,7 @@ public class SyncBlocksStats extends Tool {
 	}
 	@Override
 	public void access(AccessEvent ae){
+		System.out.println(ae.isWrite() ? "write" : "read");
 		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
 		
 		Object target = ae.getTarget();
@@ -124,7 +119,9 @@ public class SyncBlocksStats extends Tool {
 			else if(at.o instanceof Class){
 				Class<?> heldClass = (Class<?>)at.o;
 				ClassInfo cinfo = ae.getAccessInfo().getEnclosing().getOwner();
-				if(heldClass.getName().equals(cinfo.getName())) at.r = true;
+				if(heldClass.getName().equals(cinfo.getName())) { 	
+					at.r = true;
+				}
 			}
 		}
 	}
