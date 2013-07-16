@@ -6,7 +6,7 @@ export JVM_ARGS=$new_JVM_ARGS
 
 
 
-rrArgs="-array=FINE -classes=-SyncBlocksStats.* -classes=-Harness -classes=-org.dacapo.harness.* -classes=-org.dacapo.parser.* -classes=-TimerCallback"
+rrArgs="-array=FINE -noFP -classes=-SyncBlocksStats.* -classes=-Harness -classes=-org.dacapo.harness.* -classes=-org.dacapo.parser.* -classes=-TimerCallback"
 forTomcat="-multiLoader -shadowThread=-.* -maxTid=64"
 forLusearch="-maxTid=64"
 
@@ -16,7 +16,7 @@ if [ $bm == "tomcat" ]
    then rrArgs=$rrArgs" "$forTomcat
 fi
 
-if[ $bm == "lusearch" ]
+if [ $bm == "lusearch" ]
     then rrArgs=$rrArgs" "$forLusearch
 fi
 
