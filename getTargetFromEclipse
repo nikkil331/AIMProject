@@ -19,8 +19,18 @@ fi
 cp "$source"/"$file".java src
 cd src
 
+toCompile=${file##*/}
+javac $toCompile.java
 
-javac ${file##*/}.java
-mv ${file##*/}.java Targets/${file%/*}
-mv ${file##*/}*.class Targets/${file%/*}
+potentialDest=${file%/*}
+dest=
+if [ $potentialDest == $file ]
+then 
+    dest=""
+else dest=$potentialDest
+fi
+
+
+mv $toCompile.java Targets/$dest
+mv $toCompile*.class Targets/$dest
 cd ..
