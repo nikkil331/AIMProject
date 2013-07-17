@@ -97,7 +97,6 @@ public class SyncBlocksStats extends Tool {
 	}
 	@Override
 	public void access(AccessEvent ae){
-		System.out.println(ae.isWrite() ? "write" : "read");
 		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
 		
 		Object target = ae.getTarget();
@@ -119,7 +118,7 @@ public class SyncBlocksStats extends Tool {
 			else if(at.o instanceof Class){
 				Class<?> heldClass = (Class<?>)at.o;
 				ClassInfo cinfo = ae.getAccessInfo().getEnclosing().getOwner();
-				if(heldClass.getName().equals(cinfo.getName())) { 	
+				if(heldClass.getName().equals(cinfo.getName().replace('/', '.'))) { 	
 					at.r = true;
 				}
 			}
