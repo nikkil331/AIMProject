@@ -119,7 +119,7 @@ public class GuardStateInserter extends RRClassAdapter implements Opcodes {
 		final int valueSize = ASMUtil.size(desc);
 
 		mv.visitCode();
-		if ((access & ACC_FINAL) == 0) {
+		//if ((access & ACC_FINAL) == 0) {
 			final Label success = new Label();
 			
 			
@@ -162,7 +162,7 @@ public class GuardStateInserter extends RRClassAdapter implements Opcodes {
 			}
 
 			mv.visitLabel(success);
-		}
+		//}
 		mv.visitVarInsn(ALOAD, 0);
 		mv.visitVarInsn(ASMUtil.loadInstr(desc), 1);
 		mv.visitFieldInsn(PUTFIELD, rrClass.getName(), name, desc);
@@ -179,7 +179,7 @@ public class GuardStateInserter extends RRClassAdapter implements Opcodes {
 		final RRMethodAdapter mv = makeGenerator(access | (isVolatile && volatileAtomic ? ACC_SYNCHRONIZED : 0), name, desc, false);
 
 		mv.visitCode();
-		if ((access & ACC_FINAL) == 0) {
+		//if ((access & ACC_FINAL) == 0) {
 			Label success = new Label();
 
 
@@ -216,7 +216,7 @@ public class GuardStateInserter extends RRClassAdapter implements Opcodes {
 							    isVolatile ? Constants.getVOLATILE_READ_ACCESS_METHOD() : Constants.getREAD_ACCESS_METHOD());
 			}
 			mv.visitLabel(success);
-		}
+		//}
 		mv.visitVarInsn(ALOAD, 0);
 		mv.visitFieldInsn(GETFIELD, rrClass.getName(), name, desc);
 		mv.visitInsn(ASMUtil.returnInstr(desc));
@@ -233,7 +233,7 @@ public class GuardStateInserter extends RRClassAdapter implements Opcodes {
 		int valueSize = ASMUtil.size(desc);
 
 		mv.visitCode();
-		if ((access & ACC_FINAL) == 0) {
+		//if ((access & ACC_FINAL) == 0) {
 
 			Label success = new Label();
 
@@ -265,7 +265,7 @@ public class GuardStateInserter extends RRClassAdapter implements Opcodes {
 				mv.invokeStatic(Constants.MANAGER_TYPE, isVolatile ? Constants.getVOLATILE_WRITE_ACCESS_METHOD() : Constants.getWRITE_ACCESS_METHOD());
 			}
 			mv.visitLabel(success);
-		}
+		//}
 		mv.visitVarInsn(ASMUtil.loadInstr(desc), 0);
 		mv.visitFieldInsn(PUTSTATIC, rrClass.getName(), name, desc);
 		mv.visitInsn(RETURN);
@@ -282,7 +282,7 @@ public class GuardStateInserter extends RRClassAdapter implements Opcodes {
 		mv.visitCode();
 		Label l0 = new Label();
 		mv.visitLabel(l0);
-		if ((access & ACC_FINAL) == 0) {
+		//if ((access & ACC_FINAL) == 0) {
 			Label success = new Label();
 
 			visitGetShadow(mv, rrClass.getName(), name, true);
@@ -314,7 +314,7 @@ public class GuardStateInserter extends RRClassAdapter implements Opcodes {
 			}
 
 			mv.visitLabel(success);
-		}
+		//}
 		mv.visitFieldInsn(GETSTATIC, rrClass.getName(), name, desc);
 		mv.visitInsn(ASMUtil.returnInstr(desc));
 		mv.visitMaxs(10,10); // must be computed auto
@@ -336,16 +336,16 @@ public class GuardStateInserter extends RRClassAdapter implements Opcodes {
 
 			boolean isFinal = (access & ACC_FINAL) != 0; 
 
-			if (!isFinal) {
+			//if (!isFinal) {
 				final String currentClassName = rrClass.getName();
 				if (Instrumentor.fieldOption.get() == Instrumentor.FieldMode.FINE) {
-					cv.visitField(ASMUtil.makePublic(access | ACC_TRANSIENT), Constants.getShadowFieldName(currentClassName, name, isStatic), Constants.GUARD_STATE_TYPE.getDescriptor(), null, null);
+					cv.visitField(ASMUtil.makePublic((access | ACC_TRANSIENT) & ~(ACC_FINAL)), Constants.getShadowFieldName(currentClassName, name, isStatic), Constants.GUARD_STATE_TYPE.getDescriptor(), null, null);
 				} else if (!this.alreadyAddedPerObjectGuard) {
-					cv.visitField(ASMUtil.makePublic(ACC_STATIC | ACC_TRANSIENT), Constants.getShadowFieldName(currentClassName, "bogus", true), Constants.GUARD_STATE_TYPE.getDescriptor(), null, null);
-					cv.visitField(ASMUtil.makePublic(ACC_TRANSIENT), Constants.getShadowFieldName(currentClassName, "bogus", false), Constants.GUARD_STATE_TYPE.getDescriptor(), null, null);
+					cv.visitField(ASMUtil.makePublic((ACC_STATIC | ACC_TRANSIENT) & ~(ACC_FINAL)), Constants.getShadowFieldName(currentClassName, "bogus", true), Constants.GUARD_STATE_TYPE.getDescriptor(), null, null);
+					cv.visitField(ASMUtil.makePublic(ACC_TRANSIENT & ~(ACC_FINAL)), Constants.getShadowFieldName(currentClassName, "bogus", false), Constants.GUARD_STATE_TYPE.getDescriptor(), null, null);
 					this.alreadyAddedPerObjectGuard = true;
 				}
-			}
+			//}
 
 			final int publicAccess = ASMUtil.makePublic(access);
 			if (!isStatic) {
