@@ -77,7 +77,7 @@ public class InstrumentationFilter {
 				return shouldInstrument(field.getOwner()) &&
 				fieldsToWatch.get().test(field.getKey()) == StringMatchResult.ACCEPT && 
 				(field.isVolatile() ||  // always track volatiles since they are sync devices...
-				!field.isFinal() &&
+				/*!field.isFinal() &&*/
 				!field.isSynthetic());
 			}
 		});
