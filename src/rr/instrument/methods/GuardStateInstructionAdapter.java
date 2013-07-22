@@ -58,10 +58,11 @@ public class GuardStateInstructionAdapter extends ThreadDataInstructionAdapter {
 	}
 
 	public void visitAccessMethod(String owner, String fName, String desc, boolean isPut, boolean isStatic, int fad, int tdLoc) {
+		
 		this.push(fad);
 		this.visitVarInsn(ALOAD, this.context.getThreadDataVar());
 		if (isStatic) {
-			invokeStatic(Type.getObjectType(owner), Constants.getAccessMethod(owner, fName, desc, isPut));
+				invokeStatic(Type.getObjectType(owner), Constants.getAccessMethod(owner, fName, desc, isPut));
 		} else {
 			if (this.getMethod().getOwner().getName().equals(owner)) {
 				invokeSpecial(Type.getObjectType(owner), Constants.getAccessMethod(owner, fName, desc, isPut));
@@ -74,7 +75,7 @@ public class GuardStateInstructionAdapter extends ThreadDataInstructionAdapter {
 	@Override
 	public void visitFieldInsn(final int opcode, final String owner, final String name, final String desc) {
 		FieldInfo f = RRTypeInfo.resolveFieldDescriptor(owner, name, desc);
-		if (InstrumentationFilter.shouldInstrument(f)) {
+		if (InstrumentationFilter.shouldInstrument(f)  && MetaDataInfoMaps.getClass(owner).isClass()) {
 			switch (opcode) {
 			case GETFIELD: 
 			case PUTFIELD: 				
