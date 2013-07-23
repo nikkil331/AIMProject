@@ -331,6 +331,7 @@ public class GuardStateInserter extends RRClassAdapter implements Opcodes {
 
 
 		FieldInfo field = MetaDataInfoMaps.getField(rrClass, name, desc);
+		field.setFlags((access & ACC_FINAL) != 0, (access & ACC_VOLATILE) != 0, isStatic);
 
 		if (InstrumentationFilter.shouldInstrument(field)) {
 
