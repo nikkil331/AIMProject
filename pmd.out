@@ -1,6 +1,6 @@
 Number of Static Synchronized Blocks = 5
-result['org.apache.xerces.impl.dv.DTDDVFactory.java line -2'] = {"total" : 6 , "read" : 0, "write" : 0, "neither" : 6}
-result['org.apache.xerces.parsers.ObjectFactory.java line 0'] = {"total" : 6 , "read" : 0, "write" : 0, "neither" : 6}
-result['net.sourceforge.pmd.typeresolution.PMDASMClassLoader.java line 33'] = {"total" : 218 , "read" : 218, "write" : 0, "neither" : 0}
-result['org.apache.xerces.impl.dv.DTDDVFactory.java line -2'] = {"total" : 6 , "read" : 0, "write" : 0, "neither" : 6}
-result['net.sourceforge.pmd.util.Benchmark.java line 258'] = {"total" : 8585 , "read" : 0, "write" : 0, "neither" : 8585}
+result['org.apache.xerces.impl.dv.DTDDVFactory.java line -2'] = {"total" : 66 , "read" : 0, "write" : 0, "neither" : 66}
+result['org.apache.xerces.impl.dv.DTDDVFactory.java line -2'] = {"total" : 66 , "read" : 0, "write" : 0, "neither" : 66}
+result['net.sourceforge.pmd.util.Benchmark.java line 258'] = {"total" : 182 , "read" : 182, "write" : 0, "neither" : 0}
+result['org.apache.xerces.parsers.ObjectFactory.java line 0'] = {"total" : 66 , "read" : 66, "write" : 0, "neither" : 0}
+result['net.sourceforge.pmd.typeresolution.PMDASMClassLoader.java line 33'] = {"total" : 58 , "read" : 58, "write" : 0, "neither" : 0}
