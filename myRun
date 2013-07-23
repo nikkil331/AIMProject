@@ -1,14 +1,13 @@
 #! /bin/bash
 
-no_verify="-cp DaCapo -noverify"
+no_verify="-noverify"
 new_JVM_ARGS=$JVM_ARGS" "$no_verify
 export JVM_ARGS=$new_JVM_ARGS
 
 
-
-rrArgs="-array=FINE -noFP -classes=-SyncBlocksStats.* -classes=-Harness -classes=-org.dacapo.harness.* -classes=-org.dacapo.parser.* -classes=-TimerCallback"
+rrArgs="-noFP -array=FINE -classes=-SyncBlocksStats.* -classes=-Harness -classes=-org.dacapo.harness.* -classes=-org.dacapo.parser.* -classes=-TimerCallback"
 forTomcat="-multiLoader -shadowThread=-.* -maxTid=64"
-forLusearch="-maxTid=64"
+moreTids="-maxTid=150"
 
 bm=$1
 
@@ -16,8 +15,8 @@ if [ $bm == "tomcat" ]
    then rrArgs=$rrArgs" "$forTomcat
 fi
 
-if [ $bm == "lusearch" ]
-    then rrArgs=$rrArgs" "$forLusearch
+if [ $bm == "lusearch" -o $bm == "sunflow" -o $bm == "pmd" ]
+    then rrArgs=$rrArgs" "$moreTids
 fi
 
-rrrun $rrArgs -toolpath=classes/tools/trials -classpath=./DaCapo/dacapo-9.12-bach.jar -tool=SyncBlocksStats Harness $bm
+rrrun $rrArgs -toolpath=classes/tools/trials -classpath=./DaCapo/dacapo-9.12-bach.jar -tool=SyncBlocksStats Harness $bm | grep "Static\ Synchronized\ Blocks\|result" > $bm.out
