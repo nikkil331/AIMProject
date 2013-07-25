@@ -1,6 +1,9 @@
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 
+import rr.meta.AcquireInfo;
 import rr.meta.ClassInfo;
 import rr.meta.SourceLocation;
 import acme.util.decorations.Decoration;
@@ -21,7 +24,9 @@ import rr.state.ShadowVar;
 public class SyncBlocksStats extends Tool {
 	
 	private static boolean testOutput = false;
+	private static boolean testMethodOutput = false;
 	
+	private boolean inStop = false;
 	
 	private static DecorationFactory<ShadowThread> fac = new DecorationFactory<ShadowThread>();
 	private static Decoration<ShadowThread, Stack<AccessTracker>> locks =fac.make("locks", DecorationFactory.Type.SINGLE, 
@@ -35,6 +40,7 @@ public class SyncBlocksStats extends Tool {
 		int Read = 0;
 		int Write = 0;
 		int None = 0;
+		List<Integer> depths = new ArrayList<Integer>();
 	}
 	
 	private class AccessTracker{
@@ -42,6 +48,9 @@ public class SyncBlocksStats extends Tool {
 		boolean r = false;
 		boolean w = false;
 		SourceLocation loc;
+		int currDepth = 0;
+		int firstRDepth = -1;
+		int firstWDepth = -1;
 		
 		public AccessTracker(AcquireEvent ae){
 			this.o = ae.getLock().getLock();
@@ -86,15 +95,31 @@ public class SyncBlocksStats extends Tool {
 		synchronized(count){
 			if(at.w){
 				count.Write++;
+				if(!count.depths.contains(at.firstWDepth)) count.depths.add(at.firstWDepth);
 			}
 			else if(at.r){
 				count.Read++;
+				if(!count.depths.contains(at.firstRDepth)) count.depths.add(at.firstRDepth);
 			}
 			else{
 				count.None++;
 			}
 		}
 	}
+	
+	private void setFirstDepth(AccessTracker at, boolean isRead){
+		if(isRead){
+			if(!at.r){
+				at.firstRDepth = at.currDepth;
+			}
+		}
+		else{
+			if(!at.w){
+				at.firstWDepth = at.currDepth;
+			}
+		}
+	}
+	
 	@Override
 	public void access(AccessEvent ae){
 		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
@@ -106,19 +131,24 @@ public class SyncBlocksStats extends Tool {
 		for(AccessTracker at : localLocks){
 			if (at.o == self){
 				if(ae.isWrite()){
+					setFirstDepth(at, false);
 					at.w = true;
+					
 				}
 				else{
+					setFirstDepth(at, true);
 					at.r = true;
 				}
 			}
 			else if(at.o == target){
+				setFirstDepth(at, true);
 				at.r = true;
 			}
 			else if(at.o instanceof Class){
 				Class<?> heldClass = (Class<?>)at.o;
 				ClassInfo cinfo = ae.getAccessInfo().getEnclosing().getOwner();
-				if(heldClass.getName().equals(cinfo.getName().replace('/', '.'))) { 	
+				if(heldClass.getName().equals(cinfo.getName().replace('/', '.'))) { 
+					setFirstDepth(at, true);
 					at.r = true;
 				}
 			}
@@ -138,6 +168,11 @@ public class SyncBlocksStats extends Tool {
 	
 	@Override
 	public void enter(MethodEvent me){
+		Stack<AccessTracker> localLocks = locks.get(me.getThread());
+		for(AccessTracker at : localLocks){
+			at.currDepth++;
+		}
+		
 		if(testOutput){
 			System.out.println(me.toString());
 		}
@@ -145,6 +180,11 @@ public class SyncBlocksStats extends Tool {
 	}
 	@Override
 	public void exit(MethodEvent me){
+		Stack<AccessTracker> localLocks = locks.get(me.getThread());
+		for(AccessTracker at : localLocks){
+			at.currDepth--;
+		}
+		
 		if(testOutput){
 			System.out.println(me.toString());
 		}
@@ -153,13 +193,21 @@ public class SyncBlocksStats extends Tool {
 	@Override
 	public void fini(){
 		System.out.println("Number of Static Synchronized Blocks = " + pcMap.size());
-		for(SourceLocation loc : pcMap.keySet()){
-			Counter count = pcMap.get(loc);
-			synchronized(count){
-				System.out.printf("result['%s line %d'] = {\"total\" : %d , \"read\" : %d, \"write\" : %d, \"neither\" : %d}\n", 
-						loc.getFile().replace('/', '.'), loc.getLine(), count.Total, count.Read, count.Write, count.None);
-			}
-		}
 		
+			for(SourceLocation loc : pcMap.keySet()){
+				Counter count = pcMap.get(loc);
+				synchronized(count){
+					StringBuilder sb = new StringBuilder();
+					sb.append("[");
+					for(Integer i : count.depths){
+						sb.append(i + ",");
+					}
+					if(sb.length() > 1) sb.replace(sb.length() - 1, sb.length(), "]");
+					else sb.append("]");
+					System.out.printf("result['%s line %d'] = {\"total\" : %d , \"read\" : %d, " +
+							"\"write\" : %d, \"neither\" : %d, \"depths\" : %s}\n", 
+						loc.getFile().replace('/', '.'), loc.getLine(), count.Total, count.Read, count.Write, count.None, sb.toString());
+				}
+		}
 	}
 }
