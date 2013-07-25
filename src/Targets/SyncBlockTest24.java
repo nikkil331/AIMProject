@@ -14,7 +14,9 @@ public class SyncBlockTest24 {
 			x++;
 		}
 	}
-	public synchronized void doNothing(){}
+	public synchronized void doNothing(){ 
+		int x = 5;
+	}
 	
 	private static class Test implements Runnable{
 		SyncBlockTest24 sbt = new SyncBlockTest24();

@@ -4,7 +4,7 @@ import java.util.concurrent.Executors;
 public class SyncBlockTest15 {
 	private Integer[] arr = {1,2,3,4,5,6,7,8,9,10};
 	
-	public synchronized void read(){
+	public synchronized void read(){ 
 		int index = (int)Thread.currentThread().getId() % 10; 
 		synchronized(arr){
 			arr[index] = arr[index] + 1;

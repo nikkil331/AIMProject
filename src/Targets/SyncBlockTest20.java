@@ -12,7 +12,10 @@ public class SyncBlockTest20 {
 	public synchronized void write(){
 		x++;
 	}
-	public synchronized void neither(){}
+	public synchronized void neither(){
+		int y = 2;
+	}
+	
 	private static class Test implements Runnable{
 		SyncBlockTest20 sbt = new SyncBlockTest20();
 		

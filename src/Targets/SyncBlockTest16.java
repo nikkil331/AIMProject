@@ -27,7 +27,9 @@ public class SyncBlockTest16 {
 			}
 		}
 	}
-	public synchronized void neither(){ int y = 5;}
+	public synchronized void neither(){
+		int y = 5;
+	}
 	
 	private static class Test implements Runnable{
 		SyncBlockTest16 sbt = new SyncBlockTest16();
