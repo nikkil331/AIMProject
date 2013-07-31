@@ -1,47 +1,65 @@
+import java.util.AbstractSet;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 
 import rr.meta.AcquireInfo;
 import rr.meta.ClassInfo;
+import rr.meta.FieldInfo;
 import rr.meta.SourceLocation;
 import acme.util.decorations.Decoration;
 import acme.util.decorations.DecorationFactory;
 import acme.util.decorations.DefaultValue;
 import acme.util.option.CommandLine;
+import acme.util.option.CommandLineOption;
 import rr.tool.Tool;
 import rr.event.AccessEvent;
 import rr.event.AcquireEvent;
+import rr.event.ArrayAccessEvent;
 import rr.event.MethodEvent;
 import rr.event.ReleaseEvent;
 import rr.event.VolatileAccessEvent;
 import rr.state.ShadowLock;
 import rr.state.ShadowThread;
 import rr.state.ShadowVar;
+import rr.event.FieldAccessEvent;
+
+import org.jgrapht.*;
+import org.jgrapht.alg.BellmanFordShortestPath;
+import org.jgrapht.alg.CycleDetector;
+import org.jgrapht.graph.*;
+import org.jgrapht.traverse.DepthFirstIterator;
 
 
 public class SyncBlocksStats extends Tool {
-	
+
+/*----------------------------CLASS VARIABLES-----------------------*/
 	private static boolean testOutput = false;
-	private static boolean testMethodOutput = false;
 	
-	private boolean inStop = false;
-	
+	//mapping from thread of stack of locks held by that thread
 	private static DecorationFactory<ShadowThread> fac = new DecorationFactory<ShadowThread>();
-	private static Decoration<ShadowThread, Stack<AccessTracker>> locks =fac.make("locks", DecorationFactory.Type.SINGLE, 
-				new DefaultValue<ShadowThread, Stack<AccessTracker>>(){
-					public Stack<AccessTracker> get(ShadowThread t) { return new Stack<AccessTracker>();}
+	private static Decoration<ShadowThread, ThreadData> tdata =fac.make("tdata", DecorationFactory.Type.SINGLE, 
+				new DefaultValue<ShadowThread, ThreadData>(){
+					public ThreadData get(ShadowThread t) { return new ThreadData();}
 			}); 
+	
+	//mapping from program location to access counts and depths
 	private static ConcurrentHashMap<SourceLocation, Counter> pcMap = new ConcurrentHashMap<SourceLocation, Counter>();
 	
-	private static class Counter{
-		int  Total = 0;
-		int Read = 0;
-		int Write = 0;
-		int None = 0;
-		List<Integer> depths = new ArrayList<Integer>();
-	}
+	//state for recording parial order of accesses
+	//private static Field lastAccessed = null;
+	private static DirectedGraph<Field, StaticBlock> graph = new DirectedMultigraph<Field, StaticBlock>(StaticBlock.class);
+	private static Set<Field> cycles = new HashSet<Field>();
+	
+	//commandline options to specify analysis
+	CommandLineOption<Boolean> trackOrder;
+	CommandLineOption<Boolean> trackCounts;
+	
+/*-----------------------------INNER CLASSES---------------------*/	
 	
 	private class AccessTracker{
 		Object o;
@@ -54,13 +72,78 @@ public class SyncBlocksStats extends Tool {
 		
 		public AccessTracker(AcquireEvent ae){
 			this.o = ae.getLock().getLock();
-			this.loc = ae.getInfo().getLoc();
+			synchronized(ae.getInfo()){
+				SourceLocation origLoc = ae.getInfo().getLoc();
+				synchronized(origLoc){
+					this.loc = new SourceLocation(origLoc.getFile(), origLoc.getLine());
+				}
+			}
 		}
 	}
+	
+	private static class ThreadData{
+		private final Stack<AccessTracker> locks = new Stack<AccessTracker>();
+		private Field lastAccessed = null;
 		
+		public Stack<AccessTracker> getLocks(){
+			return locks;
+		}
+		
+		public Field getLastAccessed(){
+			return lastAccessed;
+		}
+		
+		public void setLastAccessed(Field f){
+			lastAccessed = f;
+		}
+	}
+	
+	private static class Counter{
+		int  Total = 0;
+		int Read = 0;
+		int Write = 0;
+		int None = 0;
+		List<Integer> depths = new ArrayList<Integer>();
+	}
+	
+	public static class StaticBlock extends DefaultEdge{
+		String file = "";
+		int line;
+		
+		@Override
+		public String toString(){
+			return ((Field)getSource()).name + "-->" + ((Field)getTarget()).name + 
+			" in " + file + ":" + line;
+		}
+	}
+	
+	public static class Field implements ShadowVar{
+		SourceLocation loc;
+		String name;
+	}
+	
+/*----------------------------TOOL IMPLEMENTATION----------------------------*/
+	
 	public SyncBlocksStats(String name, Tool next, CommandLine commandLine) {
 		super(name, next, commandLine);
+		
+		trackOrder = CommandLine.makeBoolean(
+				"noOrder",
+				true,
+				CommandLineOption.Kind.EXPERIMENTAL,
+				"Enable tracking of order of accesses. Default value is true");
+		
+		trackCounts = CommandLine.makeBoolean(
+				"noCounts",
+				true,
+				CommandLineOption.Kind.EXPERIMENTAL,
+				"Enable tracking of read, write, neither counts per static synchronized block." +
+				"Default value is true");
+		
+		commandLine.add(trackOrder);
+		commandLine.add(trackCounts);
 	}
+	
 	
 	@Override
 	public void acquire(AcquireEvent ae){
@@ -68,28 +151,54 @@ public class SyncBlocksStats extends Tool {
 			System.out.println("thread " + ae.getThread().getTid() + " acquired " + ae.getLock().getLock().toString());
 		}
 		
-		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
+		Stack<AccessTracker> localLocks = tdata.get(ae.getThread()).getLocks();
 		AccessTracker at = new AccessTracker(ae);
+		
+		if(trackCounts.get()){
+			updateBlockTotal(at);
+		}
+		
+		localLocks.push(at);
+	}
+	
+	private void updateBlockTotal(AccessTracker at){
 		Counter newCount = new Counter();
 		newCount.Total++;
+
+		
 		if(pcMap.putIfAbsent(at.loc, newCount) != null){
 			Counter prevCount = pcMap.get(at.loc);
 			synchronized(prevCount){
 				prevCount.Total++;
 			}
 		}
-		
-		localLocks.push(at);
 	}
+	
 	@Override
 	public void release(ReleaseEvent re){
+		
 		if(testOutput){
 			System.out.println("thread " + re.getThread().getTid() + " released " + re.getLock().getLock().toString());
 		}
 		
-		Stack<AccessTracker> localLocks = locks.get(re.getThread());
 		
+		Stack<AccessTracker> localLocks = tdata.get(re.getThread()).getLocks();
 		AccessTracker at = localLocks.pop();
+		
+		if(trackCounts.get()){
+			updateBlockCategory(at);
+		}
+		
+		if(trackOrder.get()){
+			//reset variable tracking when finished with sync block
+			if(localLocks.size() == 0){
+				tdata.get(re.getThread()).setLastAccessed(null);
+			}
+			findNewCycles();
+		}
+	}
+	
+	private void updateBlockCategory(AccessTracker at){
 		Counter count = pcMap.get(at.loc);
 		
 		synchronized(count){
@@ -107,25 +216,74 @@ public class SyncBlocksStats extends Tool {
 		}
 	}
 	
-	private void setFirstDepth(AccessTracker at, boolean isRead){
-		if(isRead){
-			if(!at.r){
-				at.firstRDepth = at.currDepth;
-			}
-		}
-		else{
-			if(!at.w){
-				at.firstWDepth = at.currDepth;
-			}
+	private void findNewCycles(){
+		synchronized(graph){
+			CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(graph);
+			Set<Field> newCycles = cd.findCycles();
+			cycles.addAll(newCycles);
 		}
 	}
 	
 	@Override
 	public void access(AccessEvent ae){
-		Stack<AccessTracker> localLocks = locks.get(ae.getThread());
+		ThreadData td = tdata.get(ae.getThread());
+		Stack<AccessTracker> localLocks = td.getLocks();
 		
+		if(trackOrder.get()){
+			//do only when in sync block
+			if(localLocks.size() != 0){
+				//get current field accessed
+				Field curr = null;
+				if(ae.getOriginalShadow() instanceof Field){
+					curr = (Field)ae.getOriginalShadow();
+				}
+				else{
+					curr = (Field)makeShadowVar(ae);
+				}
+				
+				curr.loc = localLocks.peek().loc;
+				
+				//get last field accessed in the sync block
+				Field prev = td.getLastAccessed();
+				
+				//if the current field is the first field accessed in sync block
+				if(prev == null){
+					td.setLastAccessed(curr);
+				}
+				else{
+					addAccessToGraph(prev, curr, prev.loc);
+					td.setLastAccessed(curr);
+				}
+			}
+		}
+		
+		if(trackCounts.get()){
+			categorizeAccess(ae, localLocks);
+		}
+	}
+	
+	private void addAccessToGraph(Field prev, Field curr, SourceLocation block){
+		if(!prev.equals(curr)){
+			synchronized(graph){
+				if(!graph.containsVertex(prev)) graph.addVertex(prev);
+				if(!graph.containsVertex(curr)) graph.addVertex(curr);
+				if(BellmanFordShortestPath.<Field, StaticBlock>findPathBetween
+					(graph, prev, curr) == null){
+					StaticBlock e = graph.addEdge(prev, curr);
+					e.file = block.getFile();
+					e.line = block.getLine();
+				}
+			}
+		}
+		else{
+			synchronized(graph){
+				if(!graph.containsVertex(prev)) graph.addVertex(prev);
+			}
+		}
+	}
+	
+	private void categorizeAccess(AccessEvent ae, Stack<AccessTracker>localLocks){
 		Object target = ae.getTarget();
-
 		Object self = ae.getAccessed();
 		
 		for(AccessTracker at : localLocks){
@@ -133,7 +291,6 @@ public class SyncBlocksStats extends Tool {
 				if(ae.isWrite()){
 					setFirstDepth(at, false);
 					at.w = true;
-					
 				}
 				else{
 					setFirstDepth(at, true);
@@ -155,7 +312,18 @@ public class SyncBlocksStats extends Tool {
 		}
 	}
 	
-	
+	private void setFirstDepth(AccessTracker at, boolean isRead){
+		if(isRead){
+			if(!at.r){
+				at.firstRDepth = at.currDepth;
+			}
+		}
+		else{
+			if(!at.w){
+				at.firstWDepth = at.currDepth;
+			}
+		}
+	}
 	
 	@Override
 	public void volatileAccess(VolatileAccessEvent e){
@@ -163,38 +331,78 @@ public class SyncBlocksStats extends Tool {
 	}
 	@Override
 	public ShadowVar makeShadowVar(AccessEvent ae){
+		
+		if(trackOrder.get()){
+			Field f = new Field();
+			if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
+				FieldAccessEvent fae = (FieldAccessEvent)ae;
+				f.name = fae.getInfo().getField().getName();
+			}
+			else{
+				ArrayAccessEvent aae = (ArrayAccessEvent)ae;
+				f.name = aae.getTarget().toString() + "[" + aae.getIndex() + "]";
+			}
+		
+			return f;
+		}
 		return new ShadowVar(){};
 	}
 	
 	@Override
 	public void enter(MethodEvent me){
-		Stack<AccessTracker> localLocks = locks.get(me.getThread());
-		for(AccessTracker at : localLocks){
-			at.currDepth++;
-		}
-		
 		if(testOutput){
 			System.out.println(me.toString());
+		}
+		
+		if(trackCounts.get()){
+			Stack<AccessTracker> localLocks = tdata.get(me.getThread()).getLocks();
+			for(AccessTracker at : localLocks){
+				at.currDepth++;
+			}
 		}
 		
 	}
 	@Override
 	public void exit(MethodEvent me){
-		Stack<AccessTracker> localLocks = locks.get(me.getThread());
-		for(AccessTracker at : localLocks){
-			at.currDepth--;
-		}
-		
 		if(testOutput){
 			System.out.println(me.toString());
+		}
+		
+		if(trackCounts.get()){
+			Stack<AccessTracker> localLocks = tdata.get(me.getThread()).getLocks();
+			for(AccessTracker at : localLocks){
+				at.currDepth--;
+			}
 		}
 	}
 	
 	@Override
 	public void fini(){
-		System.out.println("Number of Static Synchronized Blocks = " + pcMap.size());
-		
-			for(SourceLocation loc : pcMap.keySet()){
+		if(trackOrder.get()) printOrderAnalysis();
+		if(trackCounts.get()) printCountsAnalysis();
+	}
+	
+	private void printOrderAnalysis(){
+		System.out.println("Cycle Set Size = " + cycles.size());
+		synchronized(graph){
+			Iterator<Field> iter =
+		            new DepthFirstIterator<Field, StaticBlock>(graph);
+		        Field vertex;
+		        while (iter.hasNext()) {
+		            vertex = iter.next();
+		            System.out.println(
+		                "Vertex " + vertex.name + " is connected to: "
+		                + graph.edgesOf(vertex).toString());
+		        }
+		}
+	}
+	
+	private void printCountsAnalysis(){
+		synchronized(pcMap){
+			System.out.println("Number of Static Synchronized Blocks = " + pcMap.size());
+			
+			Set<SourceLocation> keys = pcMap.keySet();
+			for(SourceLocation loc : keys){
 				Counter count = pcMap.get(loc);
 				synchronized(count){
 					StringBuilder sb = new StringBuilder();
@@ -204,10 +412,12 @@ public class SyncBlocksStats extends Tool {
 					}
 					if(sb.length() > 1) sb.replace(sb.length() - 1, sb.length(), "]");
 					else sb.append("]");
+					
 					System.out.printf("result['%s line %d'] = {\"total\" : %d , \"read\" : %d, " +
 							"\"write\" : %d, \"neither\" : %d, \"depths\" : %s}\n", 
 						loc.getFile().replace('/', '.'), loc.getLine(), count.Total, count.Read, count.Write, count.None, sb.toString());
 				}
+			}
 		}
 	}
 }
