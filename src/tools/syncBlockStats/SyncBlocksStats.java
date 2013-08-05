@@ -68,7 +68,6 @@ public class SyncBlocksStats extends Tool {
 	//state for recording parial order of accesses
 	//private static Field lastAccessed = null;
 	private static DirectedGraph<Field, StaticBlock> graph = new ListenableDirectedMultigraph<Field, StaticBlock>(StaticBlock.class);
-	private static Set<Field> cycles = new HashSet<Field>();
 	private static ConnectivityInspector<Field, StaticBlock> connections = new ConnectivityInspector<Field, StaticBlock>(graph);
 	
 	//commandline options to specify analysis
@@ -213,7 +212,6 @@ public class SyncBlocksStats extends Tool {
 				td.setLastAccessed(null);
 				td.setSeen(new HashSet<Field>());
 			}
-			findNewCycles();
 		}
 	}
 	
@@ -235,15 +233,6 @@ public class SyncBlocksStats extends Tool {
 		}
 	}
 	
-	private void findNewCycles(){
-		synchronized(graph){
-			CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(graph);
-			Set<Field> newCycles = cd.findCycles();
-			synchronized(cycles){
-				cycles.addAll(newCycles);
-			}
-		}
-	}
 	
 	@Override
 	public void access(AccessEvent ae){
@@ -411,8 +400,6 @@ public class SyncBlocksStats extends Tool {
 	}
 	
 	private void saveOrderAnalysis() throws IOException{
-		System.out.println("Cycle Set Size = " + cycles.size());
-		
 		String output = outputName.get();
 		String graphName;
 		if(!output.isEmpty()){
