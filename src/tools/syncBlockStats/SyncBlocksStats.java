@@ -101,7 +101,7 @@ public class SyncBlocksStats extends Tool {
 		private final Stack<AccessTracker> locks = new Stack<AccessTracker>();
 		private Field lastAccessed = null;
 		private HashSet<Field> seen = new HashSet<Field>();
-		
+	        public long accesses = 0;
 		public Stack<AccessTracker> getLocks(){
 			return locks;
 		}
@@ -237,6 +237,10 @@ public class SyncBlocksStats extends Tool {
 	@Override
 	public void access(AccessEvent ae){
 		ThreadData td = tdata.get(ae.getThread());
+		td.accesses++;
+		if((td.accesses % 1000) == 0){
+		    System.out.println("There are " + graph.vertexSet().size() + " vertices in the graph");
+		}
 		Stack<AccessTracker> localLocks = td.getLocks();
 		
 		if(trackOrder.get()){
