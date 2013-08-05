@@ -34,8 +34,11 @@ public class CylceFinder {
 			e.printStackTrace();
 		}
 		
+		System.out.println("Number of nodes = " + graph.vertexSet().size());
+		System.out.println("Number of edges = " + graph.edgeSet().size());
+		
 		CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(graph);
 		Set<Field> cycles = cd.findCycles();
-		System.out.println(cycles.size());
+		System.out.println("Number of Cycles = " + cycles.size());
 	}
 }
