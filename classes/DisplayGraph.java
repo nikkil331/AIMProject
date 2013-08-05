@@ -22,6 +22,7 @@ import org.jgraph.graph.GraphModel;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.ext.JGraphModelAdapter;
 
+import rr.meta.ClassInfo;
 import tools.syncBlockStats.Field;
 import tools.syncBlockStats.StaticBlock;
 
@@ -165,7 +166,13 @@ public class DisplayGraph {
 					if(graphModel instanceof JGraphModelAdapter){
 						JGraphModelAdapter<Field, StaticBlock> model = (JGraphModelAdapter)graphModel;
 						if(DefaultGraphModel.isVertex(model, c)){
-							return model.cellToVertex.get(c).target;
+							Object target = model.cellToVertex.get(c).target;
+							if(target instanceof ClassInfo){
+								return ((ClassInfo)target).getName();
+							}
+							else{
+								return target.toString();
+							}
 						}
 						else if (model.isEdge(c)){
 							return model.cellToEdge.get(c).toString();

@@ -351,12 +351,12 @@ public class SyncBlocksStats extends Tool {
 			Field f = new Field();
 			if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
 				FieldAccessEvent fae = (FieldAccessEvent)ae;
-				String target = null;
+				Object target = null;
 				if(fae.getTarget() == null){
-					target = fae.getInfo().getEnclosing().getOwner().getName();
+					target = fae.getInfo().getEnclosing().getOwner();
 				}
 				else{
-					target = fae.getTarget().toString();
+					target = fae.getTarget();
 				}
 				f.name = fae.getInfo().getField().getName();
 				f.target = target;
