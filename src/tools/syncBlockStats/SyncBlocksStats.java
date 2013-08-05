@@ -192,7 +192,6 @@ public class SyncBlocksStats extends Tool {
 	
 	@Override
 	public void release(ReleaseEvent re){
-		
 		if(testOutput){
 			System.out.println("thread " + re.getThread().getTid() + " released " + re.getLock().getLock().toString());
 		}
@@ -254,6 +253,7 @@ public class SyncBlocksStats extends Tool {
 				else{
 					curr = (Field)makeShadowVar(ae);
 				}
+
 				if(!td.getSeen().contains(curr)){
 					curr.loc = localLocks.peek().loc;
 							
@@ -339,20 +339,11 @@ public class SyncBlocksStats extends Tool {
 	}
 	@Override
 	public ShadowVar makeShadowVar(AccessEvent ae){
-		
 		if(trackOrder.get()){
 			Field f = new Field();
 			if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
-				FieldAccessEvent fae = (FieldAccessEvent)ae;
-				Object target = null;
-				if(fae.getTarget() == null){
-					target = fae.getInfo().getEnclosing().getOwner();
-				}
-				else{
-					target = fae.getTarget();
-				}
+			        FieldAccessEvent fae = (FieldAccessEvent)ae;
 				f.name = fae.getInfo().getField().getName();
-				f.target = target;
 			}
 			else{
 				ArrayAccessEvent aae = (ArrayAccessEvent)ae;

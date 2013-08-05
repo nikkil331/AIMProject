@@ -158,28 +158,17 @@ public class DisplayGraph {
 		@Override	
 		public String getToolTipText(MouseEvent e) {
 			if(e != null) {
-		      // Fetch Cell under Mousepointer
-				Object c = getFirstCellForLocation(e.getX(), e.getY());
-				if (c != null)
-					//// Convert Cell to String and Return
-			        //return convertValueToString(c);
-					if(graphModel instanceof JGraphModelAdapter){
-						JGraphModelAdapter<Field, StaticBlock> model = (JGraphModelAdapter)graphModel;
-						if(DefaultGraphModel.isVertex(model, c)){
-							Object target = model.cellToVertex.get(c).target;
-							if(target instanceof ClassInfo){
-								return ((ClassInfo)target).getName();
-							}
-							else{
-								return target.toString();
-							}
-						}
-						else if (model.isEdge(c)){
-							return model.cellToEdge.get(c).toString();
-						}
-					}				
+			    // Fetch Cell under Mousepointer
+			    Object c = getFirstCellForLocation(e.getX(), e.getY());
+			    if (c != null){
+				// Convert Cell to String and Return
+				if(graphModel.isEdge(c)){
+				    return convertValueToString(c);
+				}
+				else return null;
 			    }
-			    return null;
+			}
+			return null;
 		}
 	}
 }
