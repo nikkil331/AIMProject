@@ -70,7 +70,6 @@ public class SyncBlocksStats extends Tool {
 	//private static Field lastAccessed = null;
 	private static DirectedGraph<Field, StaticBlock> graph = new ListenableDirectedMultigraph<Field, StaticBlock>(StaticBlock.class);
 	private static Set<Field> cycles = new HashSet<Field>();
-	private static ConnectivityInspector<Field, StaticBlock> connections = new ConnectivityInspector<Field, StaticBlock>(graph);
 	
 	//commandline options to specify analysis
 	CommandLineOption<Boolean> trackOrder;
