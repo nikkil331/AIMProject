@@ -1,11 +1,18 @@
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.Set;
 
+import org.jgraph.JGraph;
 import org.jgrapht.DirectedGraph;
+import org.jgrapht.Graph;
 import org.jgrapht.alg.CycleDetector;
+import org.jgrapht.graph.Subgraph;
+
+
 
 import tools.syncBlockStats.Field;
 import tools.syncBlockStats.StaticBlock;
@@ -40,5 +47,28 @@ public class CylceFinder {
 		CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(graph);
 		Set<Field> cycles = cd.findCycles();
 		System.out.println("Number of Cycles = " + cycles.size());
+		
+		Graph<Field, StaticBlock> cycleGraph = 
+				new Subgraph<Field,StaticBlock, DirectedGraph<Field, StaticBlock>>(graph, cycles);
+		
+		String cyclesName;
+		if(args.length > 0){
+			cyclesName = args[0] + "_cycles.ser";
+		}
+		else{
+			cyclesName = "cycles.ser";
+		}
+		
+		FileOutputStream gout;
+		try {
+			gout = new FileOutputStream(cyclesName);
+			ObjectOutputStream graph_oos = new ObjectOutputStream(gout);
+			graph_oos.writeObject(cycleGraph);
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
 	}
 }

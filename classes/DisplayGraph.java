@@ -1,47 +1,31 @@
 
-import java.util.List;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
-import java.awt.geom.Rectangle2D;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 
 import org.jgraph.JGraph;
-import org.jgraph.event.GraphSelectionEvent;
-import org.jgraph.event.GraphSelectionListener;
 import org.jgraph.graph.AttributeMap;
-import org.jgraph.graph.DefaultCellViewFactory;
-import org.jgraph.graph.DefaultGraphModel;
 import org.jgraph.graph.GraphConstants;
-import org.jgraph.graph.GraphLayoutCache;
 import org.jgraph.graph.GraphModel;
-import org.jgrapht.DirectedGraph;
+import org.jgrapht.Graph;
 import org.jgrapht.ext.JGraphModelAdapter;
 
-import rr.meta.ClassInfo;
 import tools.syncBlockStats.Field;
 import tools.syncBlockStats.StaticBlock;
 
-import org.jgraph.graph.GraphCell;
-
-import com.jgraph.io.svg.SVGGraphConstants;
 import com.jgraph.layout.JGraphCompoundLayout;
 import com.jgraph.layout.JGraphFacade;
 import com.jgraph.layout.JGraphLayout;
-import com.jgraph.layout.graph.JGraphSimpleLayout;
-import com.jgraph.layout.hierarchical.JGraphHierarchicalLayout;
 import com.jgraph.layout.organic.JGraphFastOrganicLayout;
-import com.jgraph.layout.organic.JGraphOrganicLayout;
 import com.jgraph.layout.organic.JGraphSelfOrganizingOrganicLayout;
-import com.jgraph.layout.tree.JGraphTreeLayout;
 
 import java.util.Map;
 
-import javax.swing.BorderFactory;
 import javax.swing.JFrame;
 import javax.swing.JScrollPane;
 import javax.swing.ToolTipManager;
@@ -54,16 +38,16 @@ public class DisplayGraph {
 		String graphName;
 		
 		if(args.length > 0){
-			graphName = args[0] + "_graph.ser";
+			graphName = args[0] + "_cycles.ser";
 		}
 		else{
-			graphName = "graph.ser";
+			graphName = "cycles.ser";
 		}
-		DirectedGraph<Field, StaticBlock> graph = null;
+		Graph<Field, StaticBlock> graph = null;
 		try {
 			FileInputStream gin = new FileInputStream(graphName);
 			ObjectInputStream graph_ois = new ObjectInputStream(gin);
-			graph = (DirectedGraph<Field, StaticBlock>) graph_ois.readObject();
+			graph = (Graph<Field, StaticBlock>) graph_ois.readObject();
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -72,7 +56,10 @@ public class DisplayGraph {
 			e.printStackTrace();
 		}
 		
-		//default vertex attributes
+		if(graph.vertexSet().size() == 0){
+			System.out.println("Empty graph. Nothing to display.");
+			return;
+		}
 		
 		
 		//create jgraph
@@ -158,17 +145,15 @@ public class DisplayGraph {
 		@Override	
 		public String getToolTipText(MouseEvent e) {
 			if(e != null) {
-			    // Fetch Cell under Mousepointer
-			    Object c = getFirstCellForLocation(e.getX(), e.getY());
-			    if (c != null){
-				// Convert Cell to String and Return
-				if(graphModel.isEdge(c)){
-				    return convertValueToString(c);
-				}
-				else return null;
+		      // Fetch Cell under Mousepointer
+				Object c = getFirstCellForLocation(e.getX(), e.getY());
+				if (c != null){
+						if (graphModel.isEdge(c)){
+							return convertValueToString(c);
+						}
+					}				
 			    }
-			}
-			return null;
+			    return null;
 		}
 	}
 }

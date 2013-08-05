@@ -41,6 +41,7 @@ import org.jgrapht.*;
 import org.jgrapht.alg.BellmanFordShortestPath;
 import org.jgrapht.alg.ConnectivityInspector;
 import org.jgrapht.alg.CycleDetector;
+import org.jgrapht.alg.DijkstraShortestPath;
 import org.jgrapht.ext.JGraphModelAdapter;
 import org.jgrapht.graph.*;
 import org.jgrapht.traverse.DepthFirstIterator;
@@ -55,7 +56,7 @@ public class SyncBlocksStats extends Tool {
 /*----------------------------CLASS VARIABLES-----------------------*/
 	private static boolean testOutput = false;
 	
-	//mapping from thread of stack of locks held by that thread
+	//mapping from thread to thread local information (locks, accessed fields)
 	private static DecorationFactory<ShadowThread> fac = new DecorationFactory<ShadowThread>();
 	private static Decoration<ShadowThread, ThreadData> tdata =fac.make("tdata", DecorationFactory.Type.SINGLE, 
 				new DefaultValue<ShadowThread, ThreadData>(){
@@ -65,15 +66,17 @@ public class SyncBlocksStats extends Tool {
 	//mapping from program location to access counts and depths
 	private static ConcurrentHashMap<SourceLocation, Counter> pcMap = new ConcurrentHashMap<SourceLocation, Counter>();
 	
-	//state for recording parial order of accesses
+	//state for recording partial order of accesses
 	//private static Field lastAccessed = null;
 	private static DirectedGraph<Field, StaticBlock> graph = new ListenableDirectedMultigraph<Field, StaticBlock>(StaticBlock.class);
+	private static Set<Field> cycles = new HashSet<Field>();
 	private static ConnectivityInspector<Field, StaticBlock> connections = new ConnectivityInspector<Field, StaticBlock>(graph);
 	
 	//commandline options to specify analysis
 	CommandLineOption<Boolean> trackOrder;
 	CommandLineOption<Boolean> trackCounts;
 	CommandLineOption<String> outputName;
+	
 	
 /*-----------------------------INNER CLASSES---------------------*/	
 	
@@ -101,7 +104,8 @@ public class SyncBlocksStats extends Tool {
 		private final Stack<AccessTracker> locks = new Stack<AccessTracker>();
 		private Field lastAccessed = null;
 		private HashSet<Field> seen = new HashSet<Field>();
-	        public long accesses = 0;
+		public long accesses = 0;
+		
 		public Stack<AccessTracker> getLocks(){
 			return locks;
 		}
@@ -120,6 +124,7 @@ public class SyncBlocksStats extends Tool {
 		public void setSeen(HashSet<Field> seen){
 			this.seen = seen; 
 		}
+		
 	}
 	
 	private static class Counter{
@@ -211,6 +216,7 @@ public class SyncBlocksStats extends Tool {
 				td.setLastAccessed(null);
 				td.setSeen(new HashSet<Field>());
 			}
+			//findNewCycles();
 		}
 	}
 	
@@ -232,13 +238,22 @@ public class SyncBlocksStats extends Tool {
 		}
 	}
 	
+	private void findNewCycles(){
+		synchronized(graph){
+			CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(graph);
+			Set<Field> newCycles = cd.findCycles();
+			synchronized(cycles){
+				cycles.addAll(newCycles);
+			}
+		}
+	}
 	
 	@Override
 	public void access(AccessEvent ae){
 		ThreadData td = tdata.get(ae.getThread());
 		td.accesses++;
-		if((td.accesses % 1000) == 0){
-		    System.out.println("There are " + graph.vertexSet().size() + " vertices in the graph");
+		if((td.accesses % 10000) == 0) {
+			System.out.println("There are " + graph.vertexSet().size() + " in the graph.");
 		}
 		Stack<AccessTracker> localLocks = td.getLocks();
 		
@@ -253,7 +268,7 @@ public class SyncBlocksStats extends Tool {
 				else{
 					curr = (Field)makeShadowVar(ae);
 				}
-
+				
 				if(!td.getSeen().contains(curr)){
 					curr.loc = localLocks.peek().loc;
 							
@@ -282,7 +297,7 @@ public class SyncBlocksStats extends Tool {
 		synchronized(graph){
 			graph.addVertex(prev);
 			graph.addVertex(curr);
-			if(!connections.pathExists(prev, curr)){
+			if(DijkstraShortestPath.<Field, StaticBlock>findPathBetween(graph, prev, curr) == null){
 				StaticBlock e = graph.addEdge(prev, curr);
 				e.file = block.getFile();
 				e.line = block.getLine();
@@ -342,14 +357,13 @@ public class SyncBlocksStats extends Tool {
 		if(trackOrder.get()){
 			Field f = new Field();
 			if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
-			        FieldAccessEvent fae = (FieldAccessEvent)ae;
+				FieldAccessEvent fae = (FieldAccessEvent)ae;
 				f.name = fae.getInfo().getField().getName();
 			}
 			else{
 				ArrayAccessEvent aae = (ArrayAccessEvent)ae;
 				f.name = aae.getTarget().toString() + "[" + aae.getIndex() + "]";
 			}
-		
 			return f;
 		}
 		return new ShadowVar(){};
@@ -395,6 +409,8 @@ public class SyncBlocksStats extends Tool {
 	}
 	
 	private void saveOrderAnalysis() throws IOException{
+		//System.out.println("Cycle Set Size = " + cycles.size());
+		
 		String output = outputName.get();
 		String graphName;
 		if(!output.isEmpty()){
