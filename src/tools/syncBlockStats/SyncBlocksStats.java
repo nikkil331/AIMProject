@@ -1,20 +1,14 @@
 package tools.syncBlockStats;
-import java.awt.Rectangle;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.swing.JFrame;
-import javax.swing.SwingConstants;
-import javax.swing.WindowConstants;
 
 import rr.meta.ClassInfo;
 import rr.meta.SourceLocation;
@@ -34,21 +28,10 @@ import rr.state.ShadowThread;
 import rr.state.ShadowVar;
 import rr.event.FieldAccessEvent;
 
-import org.jgraph.JGraph;
-import org.jgraph.graph.DefaultGraphCell;
-import org.jgraph.graph.GraphConstants;
+
 import org.jgrapht.*;
-import org.jgrapht.alg.BellmanFordShortestPath;
-import org.jgrapht.alg.ConnectivityInspector;
-import org.jgrapht.alg.CycleDetector;
 import org.jgrapht.alg.DijkstraShortestPath;
-import org.jgrapht.ext.JGraphModelAdapter;
 import org.jgrapht.graph.*;
-import org.jgrapht.traverse.DepthFirstIterator;
-
-
-
-import java.util.Map;
 
 
 public class SyncBlocksStats extends Tool {
@@ -64,12 +47,12 @@ public class SyncBlocksStats extends Tool {
 			}); 
 	
 	//mapping from program location to access counts and depths
-	private static ConcurrentHashMap<SourceLocation, Counter> pcMap = new ConcurrentHashMap<SourceLocation, Counter>();
+	private static ConcurrentHashMap<SourceLocation, Counter> pcMap = 
+			new ConcurrentHashMap<SourceLocation, Counter>();
 	
 	//state for recording partial order of accesses
-	//private static Field lastAccessed = null;
-	private static DirectedGraph<Field, StaticBlock> graph = new ListenableDirectedMultigraph<Field, StaticBlock>(StaticBlock.class);
-	private static Set<Field> cycles = new HashSet<Field>();
+	private static DirectedGraph<Field, StaticBlock> globalGraph = 
+			new DirectedPseudograph<Field, StaticBlock>(StaticBlock.class);
 	
 	//commandline options to specify analysis
 	CommandLineOption<Boolean> trackOrder;
@@ -101,6 +84,7 @@ public class SyncBlocksStats extends Tool {
 	
 	private static class ThreadData{
 		private final Stack<AccessTracker> locks = new Stack<AccessTracker>();
+		private DirectedGraph<Field, StaticBlock> graph = new DirectedPseudograph<Field, StaticBlock>(StaticBlock.class);
 		private Field lastAccessed = null;
 		private HashSet<Field> seen = new HashSet<Field>();
 		public long accesses = 0;
@@ -209,15 +193,16 @@ public class SyncBlocksStats extends Tool {
 		}
 		
 		if(trackOrder.get()){
+			unionGraph(tdata.get(re.getThread()));
 			//reset variable tracking when finished with sync block
 			if(localLocks.size() == 0){
 				ThreadData td = tdata.get(re.getThread());
 				td.setLastAccessed(null);
 				td.setSeen(new HashSet<Field>());
 			}
-			//findNewCycles();
 		}
 	}
+	
 	
 	private void updateBlockCategory(AccessTracker at){
 		Counter count = pcMap.get(at.loc);
@@ -237,22 +222,23 @@ public class SyncBlocksStats extends Tool {
 		}
 	}
 	
-	private void findNewCycles(){
-		synchronized(graph){
-			CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(graph);
-			Set<Field> newCycles = cd.findCycles();
-			synchronized(cycles){
-				cycles.addAll(newCycles);
-			}
+	public void unionGraph(ThreadData td){
+		synchronized(globalGraph){
+			DirectedGraph<Field, StaticBlock> union = 
+				new DirectedGraphUnion<Field, StaticBlock>(globalGraph, td.graph);
+			globalGraph = union;
 		}
+		td.graph = new DirectedPseudograph<Field, StaticBlock>(StaticBlock.class);
+		
 	}
+	
 	
 	@Override
 	public void access(AccessEvent ae){
 		ThreadData td = tdata.get(ae.getThread());
 		td.accesses++;
 		if((td.accesses % 10000) == 0) {
-			System.out.println("There are " + graph.vertexSet().size() + " in the graph.");
+			System.out.println("There are " + td.graph.vertexSet().size() + " in the graph.");
 		}
 		Stack<AccessTracker> localLocks = td.getLocks();
 		
@@ -279,7 +265,7 @@ public class SyncBlocksStats extends Tool {
 						td.setLastAccessed(curr);
 					}
 					else{
-						addAccessToGraph(prev, curr, prev.loc);
+						addAccessToGraph(td, prev, curr, prev.loc);
 						td.setLastAccessed(curr);
 					}
 					td.getSeen().add(curr);
@@ -292,15 +278,13 @@ public class SyncBlocksStats extends Tool {
 		}
 	}
 	
-	private void addAccessToGraph(Field prev, Field curr, SourceLocation block){
-		synchronized(graph){
-			graph.addVertex(prev);
-			graph.addVertex(curr);
-			if(DijkstraShortestPath.<Field, StaticBlock>findPathBetween(graph, prev, curr) == null){
-				StaticBlock e = graph.addEdge(prev, curr);
-				e.file = block.getFile();
-				e.line = block.getLine();
-			}
+	private void addAccessToGraph(ThreadData td, Field prev, Field curr, SourceLocation block){
+		td.graph.addVertex(prev);
+		td.graph.addVertex(curr);
+		if(DijkstraShortestPath.<Field, StaticBlock>findPathBetween(td.graph, prev, curr) == null){
+			StaticBlock e = td.graph.addEdge(prev, curr);
+			e.file = block.getFile();
+			e.line = block.getLine();
 		}
 	}
 	
@@ -420,7 +404,7 @@ public class SyncBlocksStats extends Tool {
 		}
 		FileOutputStream gout = new FileOutputStream(graphName);
 		ObjectOutputStream graph_oos = new ObjectOutputStream(gout);
-		graph_oos.writeObject(graph);
+		graph_oos.writeObject(globalGraph);
 	}
 	
 	
