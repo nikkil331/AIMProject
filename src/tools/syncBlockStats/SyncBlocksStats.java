@@ -21,9 +21,15 @@ import rr.tool.Tool;
 import rr.event.AccessEvent;
 import rr.event.AcquireEvent;
 import rr.event.ArrayAccessEvent;
+import rr.event.InterruptEvent;
+import rr.event.JoinEvent;
 import rr.event.MethodEvent;
+import rr.event.NewThreadEvent;
 import rr.event.ReleaseEvent;
+import rr.event.SleepEvent;
+import rr.event.StartEvent;
 import rr.event.VolatileAccessEvent;
+import rr.event.WaitEvent;
 import rr.state.ShadowThread;
 import rr.state.ShadowVar;
 import rr.event.FieldAccessEvent;
@@ -54,10 +60,13 @@ public class SyncBlocksStats extends Tool {
 	private static DirectedGraph<Field, StaticBlock> globalGraph = 
 			new DirectedPseudograph<Field, StaticBlock>(StaticBlock.class);
 	
+	static int LOCKS_GRABBED = 5;
+	
 	//commandline options to specify analysis
 	CommandLineOption<Boolean> trackOrder;
 	CommandLineOption<Boolean> trackCounts;
 	CommandLineOption<String> outputName;
+	
 	
 	
 /*-----------------------------INNER CLASSES---------------------*/	
@@ -88,6 +97,7 @@ public class SyncBlocksStats extends Tool {
 		private Field lastAccessed = null;
 		private HashSet<Field> seen = new HashSet<Field>();
 		public long accesses = 0;
+		public int locksGrabbed;
 		
 		public Stack<AccessTracker> getLocks(){
 			return locks;
@@ -150,6 +160,46 @@ public class SyncBlocksStats extends Tool {
 	
 	
 	@Override
+	public void stop(ShadowThread st){
+		ThreadData td = tdata.get(st);
+		if(td.graph.vertexSet().size() != 0){
+			unionGraph(td);
+		}
+	}
+	
+	@Override
+	public void preSleep(SleepEvent se){
+		ThreadData td = tdata.get(se.getThread());
+		if(td.graph.vertexSet().size() != 0){
+			unionGraph(td);
+		}	
+	}
+	
+	@Override
+	public void preJoin(JoinEvent je){
+		ThreadData td = tdata.get(je.getThread());
+		if(td.graph.vertexSet().size() != 0){
+			unionGraph(td);
+		}
+	}
+	
+	@Override
+	public void preInterrupt(InterruptEvent ie){
+		ThreadData td = tdata.get(ie.getThread());
+		if(td.graph.vertexSet().size() != 0){
+			unionGraph(td);
+		}
+	}
+	
+	@Override
+	public void preWait(WaitEvent we){
+		ThreadData td = tdata.get(we.getThread());
+		if(td.graph.vertexSet().size() != 0){
+			unionGraph(td);
+		}
+	}
+	
+	@Override
 	public void acquire(AcquireEvent ae){
 		if(testOutput){
 			System.out.println("thread " + ae.getThread().getTid() + " acquired " + ae.getLock().getLock().toString());
@@ -163,6 +213,8 @@ public class SyncBlocksStats extends Tool {
 		}
 		
 		localLocks.push(at);
+		
+		tdata.get(ae.getThread()).locksGrabbed++;
 	}
 	
 	private void updateBlockTotal(AccessTracker at){
@@ -183,9 +235,9 @@ public class SyncBlocksStats extends Tool {
 		if(testOutput){
 			System.out.println("thread " + re.getThread().getTid() + " released " + re.getLock().getLock().toString());
 		}
+		ThreadData td = tdata.get(re.getThread());
 		
-		
-		Stack<AccessTracker> localLocks = tdata.get(re.getThread()).getLocks();
+		Stack<AccessTracker> localLocks = td.getLocks();
 		AccessTracker at = localLocks.pop();
 		
 		if(trackCounts.get()){
@@ -193,10 +245,11 @@ public class SyncBlocksStats extends Tool {
 		}
 		
 		if(trackOrder.get()){
-			unionGraph(tdata.get(re.getThread()));
+			if(td.locksGrabbed % LOCKS_GRABBED == 0){
+				unionGraph(td);
+			}
 			//reset variable tracking when finished with sync block
 			if(localLocks.size() == 0){
-				ThreadData td = tdata.get(re.getThread());
 				td.setLastAccessed(null);
 				td.setSeen(new HashSet<Field>());
 			}
