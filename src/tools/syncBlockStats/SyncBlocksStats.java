@@ -57,10 +57,10 @@ public class SyncBlocksStats extends Tool {
 			new ConcurrentHashMap<SourceLocation, Counter>();
 	
 	//state for recording partial order of accesses
-	private static DirectedGraph<Field, StaticBlock> globalGraph = 
-			new DirectedPseudograph<Field, StaticBlock>(StaticBlock.class);
+	private static DefaultDirectedGraph<Field, StaticBlock> globalGraph = 
+			new DefaultDirectedGraph<Field, StaticBlock>(StaticBlock.class);
 	
-	static int LOCKS_GRABBED = 5;
+	static int LOCKS_GRABBED = 1;
 	
 	//commandline options to specify analysis
 	CommandLineOption<Boolean> trackOrder;
@@ -93,7 +93,7 @@ public class SyncBlocksStats extends Tool {
 	
 	private static class ThreadData{
 		private final Stack<AccessTracker> locks = new Stack<AccessTracker>();
-		private DirectedGraph<Field, StaticBlock> graph = new DirectedPseudograph<Field, StaticBlock>(StaticBlock.class);
+		private DefaultDirectedGraph<Field, StaticBlock> graph = new DefaultDirectedGraph<Field, StaticBlock>(StaticBlock.class);
 		private Field lastAccessed = null;
 		private HashSet<Field> seen = new HashSet<Field>();
 		public long accesses = 0;
@@ -277,11 +277,9 @@ public class SyncBlocksStats extends Tool {
 	
 	public void unionGraph(ThreadData td){
 		synchronized(globalGraph){
-			DirectedGraph<Field, StaticBlock> union = 
-				new DirectedGraphUnion<Field, StaticBlock>(globalGraph, td.graph);
-			globalGraph = union;
+			globalGraph.union(td.graph);
 		}
-		td.graph = new DirectedPseudograph<Field, StaticBlock>(StaticBlock.class);
+		td.graph = new DefaultDirectedGraph<Field, StaticBlock>(StaticBlock.class);
 		
 	}
 	
@@ -437,7 +435,9 @@ public class SyncBlocksStats extends Tool {
 	public void fini(){
 		if(trackOrder.get())
 			try {
-				saveOrderAnalysis();
+				synchronized(globalGraph){
+					saveOrderAnalysis();
+				}
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -445,8 +445,6 @@ public class SyncBlocksStats extends Tool {
 	}
 	
 	private void saveOrderAnalysis() throws IOException{
-		//System.out.println("Cycle Set Size = " + cycles.size());
-		
 		String output = outputName.get();
 		String graphName;
 		if(!output.isEmpty()){
