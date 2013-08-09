@@ -38,6 +38,7 @@ import org.jgrapht.DirectedGraph;
 import org.jgrapht.Graph;
 import org.jgrapht.alg.CycleDetector;
 import org.jgrapht.alg.DijkstraShortestPath;
+import org.jgrapht.alg.StrongConnectivityInspector;
 import org.jgrapht.graph.*;
 
 
@@ -292,10 +293,10 @@ public class SyncBlocksStats extends Tool {
 	@Override
 	public void access(AccessEvent ae){
 		ThreadData td = tdata.get(ae.getThread());
-		td.accesses++;
+		/*td.accesses++;
 		if((td.accesses % 10000) == 0) {
 			System.out.println("There are " + td.graph.vertexSet().size() + " in the graph.");
-		}
+		}*/
 		Stack<AccessTracker> localLocks = td.getLocks();
 		
 		if(trackOrder.get()){
@@ -453,9 +454,17 @@ public class SyncBlocksStats extends Tool {
 		System.out.println("Number of nodes = " + globalGraph.vertexSet().size());
 		System.out.println("Number of edges = " + globalGraph.edgeSet().size());
 		
-		CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(globalGraph);
+		/*CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(globalGraph);
         Set<Field> cycles = cd.findCycles();
-        System.out.println("Number of nodes in a cycle = " + cycles.size());
+        System.out.println("Number of nodes in a cycle = " + cycles.size());*/
+		
+        StrongConnectivityInspector<Field, StaticBlock> inspector =
+            new StrongConnectivityInspector<Field, StaticBlock>(globalGraph);
+        List<Set<Field>> components = inspector.stronglyConnectedSets();
+        Set<Field> cycles = getCycleSet(components);
+        System.out.println("Total number of nodes involved in a loop = " + cycles.size());
+       
+
 
         Graph<Field, StaticBlock> cycleGraph =
 		new Subgraph<Field,StaticBlock, DirectedGraph<Field, StaticBlock>>(globalGraph, cycles);
@@ -476,6 +485,31 @@ public class SyncBlocksStats extends Tool {
 		graph_oos.close();
 	}
 	
+	private Set<Field> getCycleSet(List<Set<Field>> components){
+		 // A vertex participates in a cycle if either of the following is
+        // true:  (a) it is in a component whose size is greater than 1
+        // or (b) it is a self-loop
+		int nonTrivial = 0;
+        Set<Field> set = new HashSet<Field>();
+        for (Set<Field> component : components) {
+            if (component.size() > 1) {
+            	nonTrivial++;
+            	System.out.println("Strongly connected component of size " + component.size());
+                // cycle
+                set.addAll(component);
+            } else {
+                Field v = component.iterator().next();
+                if (globalGraph.containsEdge(v, v)) {
+                    nonTrivial++;
+                    System.out.println("Self loop");
+                	// self-loop
+                    set.add(v);
+                }
+            }
+        }
+        System.out.println("Number of non-trivial strongly connected components = " + nonTrivial);
+        return set;
+	}
 	
 	private void printCountsAnalysis(){
 		synchronized(pcMap){
