@@ -2,6 +2,7 @@ package tools.syncBlockStats;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.io.RandomAccessFile;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ArrayList;
@@ -24,10 +25,8 @@ import rr.event.ArrayAccessEvent;
 import rr.event.InterruptEvent;
 import rr.event.JoinEvent;
 import rr.event.MethodEvent;
-import rr.event.NewThreadEvent;
 import rr.event.ReleaseEvent;
 import rr.event.SleepEvent;
-import rr.event.StartEvent;
 import rr.event.VolatileAccessEvent;
 import rr.event.WaitEvent;
 import rr.state.ShadowThread;
@@ -35,9 +34,13 @@ import rr.state.ShadowVar;
 import rr.event.FieldAccessEvent;
 
 
-import org.jgrapht.*;
 import org.jgrapht.alg.DijkstraShortestPath;
 import org.jgrapht.graph.*;
+
+import com.thoughtworks.xstream.XStream;
+import com.thoughtworks.xstream.io.xml.StaxDriver;
+
+
 
 
 public class SyncBlocksStats extends Tool {
@@ -453,9 +456,13 @@ public class SyncBlocksStats extends Tool {
 		else{
 			graphName = "graph.ser";
 		}
-		FileOutputStream gout = new FileOutputStream(graphName);
+		
+		
+		RandomAccessFile raf = new RandomAccessFile(graphName, "rw");
+		FileOutputStream gout = new FileOutputStream(raf.getFD());
 		ObjectOutputStream graph_oos = new ObjectOutputStream(gout);
 		graph_oos.writeObject(globalGraph);
+		graph_oos.close();
 	}
 	
 	
