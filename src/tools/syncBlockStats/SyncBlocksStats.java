@@ -34,11 +34,13 @@ import rr.state.ShadowVar;
 import rr.event.FieldAccessEvent;
 
 
+import org.jgrapht.DirectedGraph;
+import org.jgrapht.Graph;
+import org.jgrapht.alg.CycleDetector;
 import org.jgrapht.alg.DijkstraShortestPath;
 import org.jgrapht.graph.*;
 
-import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.io.xml.StaxDriver;
+
 
 
 
@@ -448,7 +450,17 @@ public class SyncBlocksStats extends Tool {
 	}
 	
 	private void saveOrderAnalysis() throws IOException{
-		String output = outputName.get();
+		System.out.println("Number of nodes = " + globalGraph.vertexSet().size());
+		System.out.println("Number of edges = " + globalGraph.edgeSet().size());
+		
+		CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(globalGraph);
+        Set<Field> cycles = cd.findCycles();
+        System.out.println("Number of nodes in a cycle = " + cycles.size());
+
+        Graph<Field, StaticBlock> cycleGraph =
+		new Subgraph<Field,StaticBlock, DirectedGraph<Field, StaticBlock>>(globalGraph, cycles);
+		
+        String output = outputName.get();
 		String graphName;
 		if(!output.isEmpty()){
 			graphName = output + "_graph.ser";
@@ -456,12 +468,11 @@ public class SyncBlocksStats extends Tool {
 		else{
 			graphName = "graph.ser";
 		}
-		
-		
+        
 		RandomAccessFile raf = new RandomAccessFile(graphName, "rw");
 		FileOutputStream gout = new FileOutputStream(raf.getFD());
 		ObjectOutputStream graph_oos = new ObjectOutputStream(gout);
-		graph_oos.writeObject(globalGraph);
+		graph_oos.writeObject(cycleGraph);
 		graph_oos.close();
 	}
 	
