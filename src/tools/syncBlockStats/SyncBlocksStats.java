@@ -471,11 +471,11 @@ public class SyncBlocksStats extends Tool {
         				globalGraph,
         				new MaskFunctor<Field, StaticBlock>(){
         					public boolean isEdgeMasked(StaticBlock e){
-        						return cycles.contains(globalGraph.getEdgeSource(e)) &&
-        								cycles.contains(globalGraph.getEdgeTarget(e));
+        						return !(cycles.contains(globalGraph.getEdgeSource(e)) &&
+        								cycles.contains(globalGraph.getEdgeTarget(e)));
         					}
         					public boolean isVertexMasked(Field v){
-        						return cycles.contains(v);
+        						return !cycles.contains(v);
         					}
         				});
  
