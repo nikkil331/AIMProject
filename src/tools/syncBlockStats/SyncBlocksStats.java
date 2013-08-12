@@ -461,14 +461,32 @@ public class SyncBlocksStats extends Tool {
         StrongConnectivityInspector<Field, StaticBlock> inspector =
             new StrongConnectivityInspector<Field, StaticBlock>(globalGraph);
         List<Set<Field>> components = inspector.stronglyConnectedSets();
-        Set<Field> cycles = getCycleSet(components);
+        final Set<Field> cycles = getCycleSet(components);
         System.out.println("Total number of nodes involved in a loop = " + cycles.size());
        
 
 
-        Graph<Field, StaticBlock> cycleGraph =
-		new Subgraph<Field,StaticBlock, DirectedGraph<Field, StaticBlock>>(globalGraph, cycles);
+        DirectedGraph<Field, StaticBlock> cycleGraph =
+        		new DirectedMaskSubgraph<Field, StaticBlock>(
+        				globalGraph,
+        				new MaskFunctor<Field, StaticBlock>(){
+        					public boolean isEdgeMasked(StaticBlock e){
+        						return cycles.contains(globalGraph.getEdgeSource(e)) &&
+        								cycles.contains(globalGraph.getEdgeTarget(e));
+        					}
+        					public boolean isVertexMasked(Field v){
+        						return cycles.contains(v);
+        					}
+        				});
+ 
+        int multipleEs = 0;
+        
+        for(Field f : cycles){
+        	if(cycleGraph.outgoingEdgesOf(f).size() > 1) multipleEs++;
+        }
 		
+        System.out.println("Numbder of nodes in strongly connected component w/ > 1 out-edge = " + multipleEs);
+        
         String output = outputName.get();
 		String graphName;
 		if(!output.isEmpty()){
