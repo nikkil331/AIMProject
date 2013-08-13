@@ -18,6 +18,7 @@ import acme.util.decorations.DecorationFactory;
 import acme.util.decorations.DefaultValue;
 import acme.util.option.CommandLine;
 import acme.util.option.CommandLineOption;
+import rr.tool.TaggedValue.Type;
 import rr.tool.Tool;
 import rr.event.AccessEvent;
 import rr.event.AcquireEvent;
@@ -87,10 +88,7 @@ public class SyncBlocksStats extends Tool {
 		public AccessTracker(AcquireEvent ae){
 			this.o = ae.getLock().getLock();
 			synchronized(ae.getInfo()){
-				SourceLocation origLoc = ae.getInfo().getLoc();
-				synchronized(origLoc){
-					this.loc = new SourceLocation(origLoc.getFile(), origLoc.getLine());
-				}
+				this.loc = ae.getInfo().getLoc();
 			}
 		}
 	}
@@ -340,7 +338,10 @@ public class SyncBlocksStats extends Tool {
 	
 	private void categorizeAccess(AccessEvent ae, Stack<AccessTracker>localLocks){
 		Object target = ae.getTarget();
-		Object self = ae.getAccessed();
+		Object self = null;
+		if(ae.oldValue.getType() == Type.OBJECT){
+			self = ae.oldValue.getObjectValue();
+		}
 		
 		for(AccessTracker at : localLocks){
 			if (at.o == self){
