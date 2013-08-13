@@ -35,10 +35,8 @@ import rr.event.FieldAccessEvent;
 
 
 import org.jgrapht.DirectedGraph;
-import org.jgrapht.Graph;
-import org.jgrapht.alg.CycleDetector;
 import org.jgrapht.alg.DijkstraShortestPath;
-import org.jgrapht.alg.StrongConnectivityInspector;
+import org.jgrapht.alg.JohnsonsCycleFinder;
 import org.jgrapht.graph.*;
 
 
@@ -102,7 +100,6 @@ public class SyncBlocksStats extends Tool {
 		private DefaultDirectedGraph<Field, StaticBlock> graph = new DefaultDirectedGraph<Field, StaticBlock>(StaticBlock.class);
 		private Field lastAccessed = null;
 		private HashSet<Field> seen = new HashSet<Field>();
-		public long accesses = 0;
 		public int locksGrabbed;
 		
 		public Stack<AccessTracker> getLocks(){
@@ -293,10 +290,6 @@ public class SyncBlocksStats extends Tool {
 	@Override
 	public void access(AccessEvent ae){
 		ThreadData td = tdata.get(ae.getThread());
-		/*td.accesses++;
-		if((td.accesses % 10000) == 0) {
-			System.out.println("There are " + td.graph.vertexSet().size() + " in the graph.");
-		}*/
 		Stack<AccessTracker> localLocks = td.getLocks();
 		
 		if(trackOrder.get()){
@@ -454,39 +447,25 @@ public class SyncBlocksStats extends Tool {
 		System.out.println("Number of nodes = " + globalGraph.vertexSet().size());
 		System.out.println("Number of edges = " + globalGraph.edgeSet().size());
 		
-		/*CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(globalGraph);
-        Set<Field> cycles = cd.findCycles();
-        System.out.println("Number of nodes in a cycle = " + cycles.size());*/
 		
-        StrongConnectivityInspector<Field, StaticBlock> inspector =
-            new StrongConnectivityInspector<Field, StaticBlock>(globalGraph);
-        List<Set<Field>> components = inspector.stronglyConnectedSets();
-        final Set<Field> cycles = getCycleSet(components);
-        System.out.println("Total number of nodes involved in a loop = " + cycles.size());
-       
-
-
-        DirectedGraph<Field, StaticBlock> cycleGraph =
-        		new DirectedMaskSubgraph<Field, StaticBlock>(
-        				globalGraph,
-        				new MaskFunctor<Field, StaticBlock>(){
-        					public boolean isEdgeMasked(StaticBlock e){
-        						return !(cycles.contains(globalGraph.getEdgeSource(e)) &&
-        								cycles.contains(globalGraph.getEdgeTarget(e)));
-        					}
-        					public boolean isVertexMasked(Field v){
-        						return !cycles.contains(v);
-        					}
-        				});
- 
-        int multipleEs = 0;
-        
-        for(Field f : cycles){
-        	if(cycleGraph.outgoingEdgesOf(f).size() > 1) multipleEs++;
-        }
+		JohnsonsCycleFinder<Field,StaticBlock> johnsons = new JohnsonsCycleFinder<Field,StaticBlock>(globalGraph);
+		int numCycles = johnsons.getCycleCount();
+		System.out.println("Number of simple cycles = " + numCycles);
 		
-        System.out.println("Numbder of nodes in strongly connected component w/ > 1 out-edge = " + multipleEs);
-        
+		Set<Field> cycles = johnsons.getCycleSet();
+		
+		 Set<StaticBlock> edgeSet = new HashSet<StaticBlock>();
+	        
+	        for(Field f : cycles){
+	        	Set<StaticBlock> outEs = globalGraph.outgoingEdgesOf(f);
+	        	for(StaticBlock e : outEs){
+	        		if(cycles.contains(globalGraph.getEdgeTarget(e))) edgeSet.add(e);
+	        	}
+	        }
+
+	        DirectedGraph<Field, StaticBlock> cycleGraph =
+	        		new DirectedSubgraph<Field, StaticBlock>(globalGraph, cycles, edgeSet);
+		
         String output = outputName.get();
 		String graphName;
 		if(!output.isEmpty()){
@@ -503,31 +482,7 @@ public class SyncBlocksStats extends Tool {
 		graph_oos.close();
 	}
 	
-	private Set<Field> getCycleSet(List<Set<Field>> components){
-		 // A vertex participates in a cycle if either of the following is
-        // true:  (a) it is in a component whose size is greater than 1
-        // or (b) it is a self-loop
-		int nonTrivial = 0;
-        Set<Field> set = new HashSet<Field>();
-        for (Set<Field> component : components) {
-            if (component.size() > 1) {
-            	nonTrivial++;
-            	System.out.println("Strongly connected component of size " + component.size());
-                // cycle
-                set.addAll(component);
-            } else {
-                Field v = component.iterator().next();
-                if (globalGraph.containsEdge(v, v)) {
-                    nonTrivial++;
-                    System.out.println("Self loop");
-                	// self-loop
-                    set.add(v);
-                }
-            }
-        }
-        System.out.println("Number of non-trivial strongly connected components = " + nonTrivial);
-        return set;
-	}
+
 	
 	private void printCountsAnalysis(){
 		synchronized(pcMap){
