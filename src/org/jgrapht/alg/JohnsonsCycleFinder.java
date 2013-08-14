@@ -113,7 +113,7 @@ public class JohnsonsCycleFinder<V,E> {
 		else{
 			for(E e : sub.outgoingEdgesOf(curr)){
 				V adj = sub.getEdgeTarget(e);
-				B.get(adj).add(curr);
+				if(sc.contains(adj)) B.get(adj).add(curr);
 			}
 		}
 		stack.remove(curr);
