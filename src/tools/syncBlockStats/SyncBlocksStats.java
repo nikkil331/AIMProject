@@ -36,6 +36,7 @@ import rr.event.FieldAccessEvent;
 
 
 import org.jgrapht.DirectedGraph;
+import org.jgrapht.alg.CycleDetector;
 import org.jgrapht.alg.DijkstraShortestPath;
 import org.jgrapht.alg.JohnsonsCycleFinder;
 import org.jgrapht.graph.*;
@@ -448,25 +449,33 @@ public class SyncBlocksStats extends Tool {
 		System.out.println("Number of nodes = " + globalGraph.vertexSet().size());
 		System.out.println("Number of edges = " + globalGraph.edgeSet().size());
 		
+		//get vertices in cycle
+		CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(globalGraph);
+		Set<Field> cycles = cd.findCycles();
 		
-		JohnsonsCycleFinder<Field,StaticBlock> johnsons = new JohnsonsCycleFinder<Field,StaticBlock>(globalGraph);
+		//get edges in cycle subgraph
+		Set<StaticBlock> edges = new HashSet<StaticBlock>();
+        
+        for(Field f : cycles){
+        	Set<StaticBlock> outEs = globalGraph.outgoingEdgesOf(f);
+        	for(StaticBlock e : outEs){
+        		if(cycles.contains(globalGraph.getEdgeTarget(e))) edges.add(e);
+        	}
+        }
+		
+		DirectedGraph<Field, StaticBlock> cycleGraph = new DirectedSubgraph<Field, StaticBlock>(
+				globalGraph,
+				cycles,
+				edges
+				);
+		
+		
+		//find number of simple cycles in cycle graph
+		JohnsonsCycleFinder<Field,StaticBlock> johnsons = new JohnsonsCycleFinder<Field,StaticBlock>(cycleGraph);
 		int numCycles = johnsons.getCycleCount();
 		System.out.println("Number of simple cycles = " + numCycles);
 		
-		Set<Field> cycles = johnsons.getCycleSet();
-		
-		 Set<StaticBlock> edgeSet = new HashSet<StaticBlock>();
-	        
-	        for(Field f : cycles){
-	        	Set<StaticBlock> outEs = globalGraph.outgoingEdgesOf(f);
-	        	for(StaticBlock e : outEs){
-	        		if(cycles.contains(globalGraph.getEdgeTarget(e))) edgeSet.add(e);
-	        	}
-	        }
-
-	        DirectedGraph<Field, StaticBlock> cycleGraph =
-	        		new DirectedSubgraph<Field, StaticBlock>(globalGraph, cycles, edgeSet);
-		
+		//save cycle graph
         String output = outputName.get();
 		String graphName;
 		if(!output.isEmpty()){

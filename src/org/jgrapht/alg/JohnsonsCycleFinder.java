@@ -23,7 +23,6 @@ public class JohnsonsCycleFinder<V,E> {
 	Map<V, Set<V>> B;
 	Stack<V> stack;
 	
-	Set<V> cycleSet;
 	int numCycles = 0;
 	int numNodes;
 	
@@ -33,7 +32,6 @@ public class JohnsonsCycleFinder<V,E> {
 		this.graph = graph;
 		vertices = new ArrayList<V>();
 		vertices.addAll(graph.vertexSet());
-		cycleSet = new HashSet<V>();
 		
 		numNodes = vertices.size();
 		
@@ -98,7 +96,6 @@ public class JohnsonsCycleFinder<V,E> {
 			if(!sc.contains(adj)) continue;
 			if(adj == start){
 				numCycles++;
-				cycleSet.addAll(stack);
 				f = true;
 			}
 			else if(!blocked.get(adj)){
@@ -148,7 +145,4 @@ public class JohnsonsCycleFinder<V,E> {
 		return numCycles;
 	}
 	
-	public Set<V> getCycleSet(){
-		return cycleSet;
-	}
 }
