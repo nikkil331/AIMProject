@@ -14,7 +14,6 @@ import org.jgrapht.graph.DirectedSubgraph;
 import org.jgrapht.graph.MaskFunctor;
 
 import tools.syncBlockStats.Field;
-import tools.syncBlockStats.StaticBlock;
 
 public class JohnsonsCycleFinder<V,E> {
 	DirectedGraph<V,E> graph;
@@ -119,7 +118,8 @@ public class JohnsonsCycleFinder<V,E> {
 	
 	public void unblock(V u){
 		blocked.put(u, false);
-		for(V w : B.get(u)){
+		Set<V> value = B.get(u);
+		for(V w : value){
 			B.get(u).remove(w);
 			if(blocked.get(w)) unblock(w);
 		}
