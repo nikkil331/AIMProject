@@ -15,13 +15,15 @@ import java.io.RandomAccessFile;
 import org.jgraph.JGraph;
 import org.jgraph.graph.AttributeMap;
 import org.jgraph.graph.DefaultGraphModel;
+import org.jgraph.graph.GraphCell;
 import org.jgraph.graph.GraphConstants;
 import org.jgraph.graph.GraphModel;
 import org.jgrapht.DirectedGraph;
+import org.jgrapht.Graph;
 import org.jgrapht.ext.JGraphModelAdapter;
 
+import tools.syncBlockStats.BlockEdge;
 import tools.syncBlockStats.Field;
-import tools.syncBlockStats.StaticBlock;
 
 import com.jgraph.layout.JGraphCompoundLayout;
 import com.jgraph.layout.JGraphFacade;
@@ -39,7 +41,7 @@ import javax.swing.border.LineBorder;
 
 
 public class DisplayGraph {
-	
+	public static JGraphModelAdapter<Field, BlockEdge> adapter;
 	public static void main(String[] args){	
 		String graphName;
 		
@@ -50,12 +52,12 @@ public class DisplayGraph {
 			graphName = "graph.ser";
 		}
 		
-		DirectedGraph<Field, StaticBlock> graph = null;
+		Graph<Field, BlockEdge> graph = null;
 		try {
 			RandomAccessFile raf = new RandomAccessFile(graphName, "r");
 			FileInputStream gin = new FileInputStream(raf.getFD());
 			ObjectInputStream graph_ios = new ObjectInputStream(gin);
-			graph = (DirectedGraph<Field, StaticBlock>) graph_ios.readObject();
+			graph = (Graph<Field, BlockEdge>) graph_ios.readObject();
 			graph_ios.close();
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -72,8 +74,8 @@ public class DisplayGraph {
 		
 		//split groups of connected components into different windows for easier viewing
 		//too many connected components, runs out of memory
-		/*ConnectivityInspector<Field, StaticBlock> connectivity =
-				new ConnectivityInspector<Field, StaticBlock>(graph);
+		/*ConnectivityInspector<Field, BlockEdge> connectivity =
+				new ConnectivityInspector<Field, BlockEdge>(graph);
 		List<Set<Field>> ccs = connectivity.connectedSets();
 		
 		
@@ -101,8 +103,8 @@ public class DisplayGraph {
 
 		
 		for(Set<Field> cc : combinedCCs){
-			Subgraph<Field, StaticBlock, DirectedGraph<Field, StaticBlock>> g = 
-					new Subgraph<Field, StaticBlock, DirectedGraph<Field, StaticBlock>>(graph, cc);
+			Subgraph<Field, BlockEdge, DirectedGraph<Field, BlockEdge>> g = 
+					new Subgraph<Field, BlockEdge, DirectedGraph<Field, BlockEdge>>(graph, cc);
 		*/	
 		
 		//set up one layout for all connected components
@@ -114,8 +116,8 @@ public class DisplayGraph {
 		JGraphLayout compoundLayout = new JGraphCompoundLayout(layouts);
 				
 		//create jgraph
-		JGraphModelAdapter<Field, StaticBlock> adapter = 
-				new JGraphModelAdapter<Field, StaticBlock>(graph, createVertexAttributes(), createEdgeAttributes());
+		adapter = 
+				new MergingModelAdapter<Field, BlockEdge>(graph, createVertexAttributes(), createEdgeAttributes());
 			
 		JGraph graphVis = new ToolTipGraph(adapter);
 		ToolTipManager.sharedInstance().registerComponent(graphVis);
@@ -154,7 +156,9 @@ public class DisplayGraph {
 	            GraphConstants.DEFAULTFONT.deriveFont(Font.PLAIN, 10));
 	     GraphConstants.setOpaque(map, true);
 	     GraphConstants.setEditable(map, false);
-	        
+	     
+	     
+	     
 	     return map;
 	}
 	
@@ -162,12 +166,12 @@ public class DisplayGraph {
 		AttributeMap map = new AttributeMap();
 
         
-       GraphConstants.setLineEnd(map, GraphConstants.ARROW_CLASSIC);
+       GraphConstants.setLineEnd(map, GraphConstants.ARROW_TECHNICAL);
        GraphConstants.setBeginFill(map, true);
        GraphConstants.setEndFill(map, true);
        GraphConstants.setEndSize(map, 6);
        GraphConstants.setRouting(map, GraphConstants.ROUTING_SIMPLE);
-       GraphConstants.setLineStyle(map, GraphConstants.STYLE_ORTHOGONAL);
+       GraphConstants.setLineStyle(map, GraphConstants.STYLE_SPLINE);
        GraphConstants.setLabelEnabled(map, false);
 
        GraphConstants.setForeground(map, Color.decode("#25507C"));
@@ -183,7 +187,38 @@ public class DisplayGraph {
         return map;
 	}
 	
-	public static class ToolTipGraph extends JGraph{
+	private static class MergingModelAdapter<V,E> extends JGraphModelAdapter<V,E>{
+		public MergingModelAdapter (Graph<V,E> jGraphTGraph) {
+			super(jGraphTGraph);
+		}
+        public MergingModelAdapter(
+        		Graph<V,E> jGraphTGraph,
+        		AttributeMap defaultVertexAttributes,
+        		AttributeMap BlockEdgeAttributes) {
+        	super(jGraphTGraph, defaultVertexAttributes, BlockEdgeAttributes);
+        }
+        public MergingModelAdapter(
+        		Graph<V,E> jGraphTGraph, 
+        		AttributeMap defaultVertexAttributes, 
+        		AttributeMap BlockEdgeAttributes, 
+        		JGraphModelAdapter.CellFactory<V,E> cellFactory) {
+        	super(jGraphTGraph, defaultVertexAttributes, BlockEdgeAttributes, cellFactory);
+        }
+        
+        @Override
+        protected AttributeMap createVertexAttributeMap(GraphCell vertexCell){
+        	AttributeMap map = super.createVertexAttributeMap(vertexCell);
+        	if(cellToVertex.get(vertexCell) instanceof Field){
+        		if(((Field)cellToVertex.get(vertexCell)).merged){
+        			GraphConstants.setBorder((AttributeMap)map.get(vertexCell), 
+        					new LineBorder(Color.GREEN, 1));
+        		}
+        	}
+        	return map;
+        }
+	}
+	
+	private static class ToolTipGraph extends JGraph{
 		public ToolTipGraph(GraphModel model){
 			super(model);
 		}	
@@ -194,7 +229,14 @@ public class DisplayGraph {
 		      // Fetch Cell under Mousepointer
 				Object c = getFirstCellForLocation(e.getX(), e.getY());
 				if (c != null){
-						if (graphModel.isEdge(c) || DefaultGraphModel.isVertex(graphModel, c)){
+						if (DefaultGraphModel.isVertex(adapter, c)){
+							if(graphModel instanceof JGraphModelAdapter<?,?>){
+								Field v = ((JGraphModelAdapter<Field, BlockEdge>)adapter).
+										cellToVertex.get(c);
+								return v.loc.toString();
+							}
+						}
+						else if(graphModel.isEdge(c)){
 							return convertValueToString(c);
 						}
 					}				
