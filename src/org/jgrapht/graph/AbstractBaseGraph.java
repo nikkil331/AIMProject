@@ -312,7 +312,6 @@ public abstract class AbstractBaseGraph<V, E>
         if (e instanceof IntrusiveEdge) {
             return (IntrusiveEdge) e;
         }
-
         return edgeMap.get(e);
     }
 
@@ -538,7 +537,23 @@ public abstract class AbstractBaseGraph<V, E>
 		for(V vertex: vertexSet){
 			Set<E> edgeSet = g2.specifics.outgoingEdgesOf(vertex);
 			for(E edge : edgeSet){
-				addEdge(getEdgeSource(edge), getEdgeTarget(edge));
+				V sourceVertex = getEdgeSource(edge);
+				V targetVertex = getEdgeTarget(edge);
+		        if (!allowingMultipleEdges
+		            && containsEdge(sourceVertex, targetVertex))
+		        { continue; }
+		         
+		        if (!allowingLoops && sourceVertex.equals(targetVertex)) {
+		            continue;}
+
+		        if (containsEdge(edge)) { continue; } 
+		        else {
+		            IntrusiveEdge intrusiveEdge =
+		                createIntrusiveEdge(edge, sourceVertex, targetVertex);
+
+		            edgeMap.put(edge, intrusiveEdge);
+		            specifics.addEdgeToTouchingVertices(edge);
+		        }
 			}
 		}
     }
