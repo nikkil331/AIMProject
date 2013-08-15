@@ -10,8 +10,11 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.concurrent.ConcurrentHashMap;
 
+import java.util.Iterator;
+
 
 import rr.meta.ClassInfo;
+import rr.meta.FieldInfo;
 import rr.meta.SourceLocation;
 import acme.util.decorations.Decoration;
 import acme.util.decorations.DecorationFactory;
@@ -62,9 +65,14 @@ public class SyncBlocksStats extends Tool {
 	private static ConcurrentHashMap<SourceLocation, Counter> pcMap = 
 			new ConcurrentHashMap<SourceLocation, Counter>();
 	
+	
+	//mapping from static fields to shadow var instances
+	private static ConcurrentHashMap<FieldInfo, List<Field>> fieldMap =
+			new ConcurrentHashMap<FieldInfo, List<Field>>();
+	
 	//state for recording partial order of accesses
-	private static DefaultDirectedGraph<Field, StaticBlock> globalGraph = 
-			new DefaultDirectedGraph<Field, StaticBlock>(StaticBlock.class);
+	private static DefaultDirectedGraph<Field, BlockEdge> globalGraph = 
+			new DefaultDirectedGraph<Field, BlockEdge>(BlockEdge.class);
 	
 	static int LOCKS_GRABBED = 1;
 	
@@ -96,7 +104,7 @@ public class SyncBlocksStats extends Tool {
 	
 	private static class ThreadData{
 		private final Stack<AccessTracker> locks = new Stack<AccessTracker>();
-		private DefaultDirectedGraph<Field, StaticBlock> graph = new DefaultDirectedGraph<Field, StaticBlock>(StaticBlock.class);
+		private DefaultDirectedGraph<Field, BlockEdge> graph = new DefaultDirectedGraph<Field, BlockEdge>(BlockEdge.class);
 		private Field lastAccessed = null;
 		private HashSet<Field> seen = new HashSet<Field>();
 		public int locksGrabbed;
@@ -281,7 +289,7 @@ public class SyncBlocksStats extends Tool {
 		synchronized(globalGraph){
 			globalGraph.union(td.graph);
 		}
-		td.graph = new DefaultDirectedGraph<Field, StaticBlock>(StaticBlock.class);
+		td.graph = new DefaultDirectedGraph<Field, BlockEdge>(BlockEdge.class);
 		
 	}
 	
@@ -293,7 +301,7 @@ public class SyncBlocksStats extends Tool {
 		
 		if(trackOrder.get()){
 			//do only when in sync block
-			if(localLocks.size() != 0){
+			if(localLocks.size() > 0){
 				//get current field accessed
 				Field curr = null;
 				if(ae.getOriginalShadow() instanceof Field){
@@ -302,10 +310,23 @@ public class SyncBlocksStats extends Tool {
 				else{
 					curr = (Field)makeShadowVar(ae);
 				}
+				curr.loc = localLocks.peek().loc;
+				
+				//if access is a field type, add it to map
+				if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
+					FieldInfo field = ((FieldAccessEvent)ae).getInfo().getField();
+					
+					List<Field> vList = new ArrayList<Field>();
+					vList.add(curr);
+					if(fieldMap.putIfAbsent(field, vList) != null){
+						List<Field> vertices = fieldMap.get(field);
+						synchronized(vertices){
+							if(!vertices.contains(curr)) vertices.add(curr);
+						}
+					}
+				}
 				
 				if(!td.getSeen().contains(curr)){
-					curr.loc = localLocks.peek().loc;
-							
 					//get last field accessed in the sync block
 					Field prev = td.getLastAccessed();
 					
@@ -314,7 +335,7 @@ public class SyncBlocksStats extends Tool {
 						td.setLastAccessed(curr);
 					}
 					else{
-						addAccessToGraph(td, prev, curr, prev.loc);
+						addAccessToGraph(td, prev, curr);
 						td.setLastAccessed(curr);
 					}
 					td.getSeen().add(curr);
@@ -327,13 +348,13 @@ public class SyncBlocksStats extends Tool {
 		}
 	}
 	
-	private void addAccessToGraph(ThreadData td, Field prev, Field curr, SourceLocation block){
+	private void addAccessToGraph(ThreadData td, Field prev, Field curr){
 		td.graph.addVertex(prev);
 		td.graph.addVertex(curr);
-		if(DijkstraShortestPath.<Field, StaticBlock>findPathBetween(td.graph, prev, curr) == null){
-			StaticBlock e = td.graph.addEdge(prev, curr);
-			e.file = block.getFile();
-			e.line = block.getLine();
+		if(DijkstraShortestPath.<Field, BlockEdge>findPathBetween(td.graph, prev, curr) == null){
+			BlockEdge e = td.graph.addEdge(prev, curr);
+			e.loc = prev.loc;
+			System.out.println(e.loc);
 		}
 	}
 	
@@ -389,11 +410,13 @@ public class SyncBlocksStats extends Tool {
 	}
 	@Override
 	public ShadowVar makeShadowVar(AccessEvent ae){
-		if(trackOrder.get()){
+		Stack<AccessTracker> localLocks = tdata.get(ae.getThread()).locks;
+		if(trackOrder.get() && localLocks.size() > 0){
 			Field f = new Field();
 			if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
 				FieldAccessEvent fae = (FieldAccessEvent)ae;
 				f.name = fae.getInfo().getField().getName();
+				f.statField = fae.getInfo().getField();
 			}
 			else{
 				ArrayAccessEvent aae = (ArrayAccessEvent)ae;
@@ -450,20 +473,20 @@ public class SyncBlocksStats extends Tool {
 		System.out.println("Number of edges = " + globalGraph.edgeSet().size());
 		
 		//get vertices in cycle
-		CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(globalGraph);
+		CycleDetector<Field, BlockEdge> cd = new CycleDetector<Field, BlockEdge>(globalGraph);
 		Set<Field> cycles = cd.findCycles();
 		
 		//get edges in cycle subgraph
-		Set<StaticBlock> edges = new HashSet<StaticBlock>();
+		Set<BlockEdge> edges = new HashSet<BlockEdge>();
         
         for(Field f : cycles){
-        	Set<StaticBlock> outEs = globalGraph.outgoingEdgesOf(f);
-        	for(StaticBlock e : outEs){
+        	Set<BlockEdge> outEs = globalGraph.outgoingEdgesOf(f);
+        	for(BlockEdge e : outEs){
         		if(cycles.contains(globalGraph.getEdgeTarget(e))) edges.add(e);
         	}
         }
 		
-		DirectedGraph<Field, StaticBlock> cycleGraph = new DirectedSubgraph<Field, StaticBlock>(
+		DirectedGraph<Field, BlockEdge> cycleGraph = new DirectedSubgraph<Field, BlockEdge>(
 				globalGraph,
 				cycles,
 				edges
@@ -471,9 +494,13 @@ public class SyncBlocksStats extends Tool {
 		
 		
 		//find number of simple cycles in cycle graph
-		JohnsonsCycleFinder<Field,StaticBlock> johnsons = new JohnsonsCycleFinder<Field,StaticBlock>(cycleGraph);
+		JohnsonsCycleFinder<Field,BlockEdge> johnsons = new JohnsonsCycleFinder<Field,BlockEdge>(cycleGraph);
 		int numCycles = johnsons.getCycleCount();
 		System.out.println("Number of simple cycles = " + numCycles);
+		
+		synchronized(globalGraph){
+			mergeGraph();
+		}
 		
 		//save cycle graph
         String output = outputName.get();
@@ -488,7 +515,7 @@ public class SyncBlocksStats extends Tool {
 		RandomAccessFile raf = new RandomAccessFile(graphName, "rw");
 		FileOutputStream gout = new FileOutputStream(raf.getFD());
 		ObjectOutputStream graph_oos = new ObjectOutputStream(gout);
-		graph_oos.writeObject(cycleGraph);
+		graph_oos.writeObject(globalGraph);
 		graph_oos.close();
 	}
 	
@@ -516,5 +543,116 @@ public class SyncBlocksStats extends Tool {
 				}
 			}
 		}
+	}
+	
+	private void mergeGraph(){
+		Set<FieldInfo> fields = fieldMap.keySet();
+		System.out.println("Number of fields = " + fields.size());
+		for(FieldInfo f : fields){
+			List<Field> vertices = fieldMap.get(f);
+			System.out.println("Number of vertices per field " + f.getName() + " = " + vertices.size());
+			
+			int i = 0;
+			while(i < vertices.size()){
+				int j = i + 1;
+				while(j < vertices.size()){
+					if(!mergeVertices(vertices.get(i), vertices.get(j), i, j)){
+						j++;
+					}
+				}
+				i++;
+			}
+			
+			
+		}
+	}
+	
+	//pass in vertex index in list to speed up deletion
+	private boolean mergeVertices(Field v0, Field v1, int ind0, int ind1){
+		System.out.println("Attempting to merge " + v0.name + " " + v1.name);
+		//outgoing-edge sets
+		
+		if(globalGraph.containsEdge(v0, v1) || globalGraph.containsEdge(v1, v0)) return false;
+		
+		Set<BlockEdge> outEdges0 = globalGraph.outgoingEdgesOf(v0);
+		Set<BlockEdge> outEdges1 = globalGraph.outgoingEdgesOf(v1);
+		if(outEdges0.size() != outEdges1.size()){
+			System.out.println("Number of outedges differ");
+			return false;
+		}
+		
+		//incoming-edge sets
+		Set<BlockEdge> inEdges0 = globalGraph.incomingEdgesOf(v0);
+		Set<BlockEdge> inEdges1 = globalGraph.incomingEdgesOf(v1);
+		if(inEdges0.size() != inEdges1.size()){
+			System.out.println("Number of inedges differ");
+			return false;
+		}
+		
+		
+		SourceLocation block = null;
+		
+		for(BlockEdge e0 : outEdges0){
+			if(block == null){
+				block = e0.loc;
+			}
+			Field target0 = globalGraph.getEdgeTarget(e0);
+			boolean match = false;
+			for(BlockEdge e1 : outEdges1){
+				if(!e1.loc.equals(block)) {
+					System.out.println("Not all outedges in same block");
+					return false;
+				}
+				Field target1 = globalGraph.getEdgeTarget(e1);
+				if(target0.statField.equals(target1.statField)) match = true;
+			}
+			if(!match){
+				System.out.println("Edge from " + v0.name + " to " + target0.name + " did not have match");
+				return false;
+			}
+		}
+		
+		
+		for(BlockEdge e0 : inEdges0){
+			if(block == null){
+				block = e0.loc;
+			}
+			Field source0 = globalGraph.getEdgeSource(e0);
+			boolean match = false;
+			for(BlockEdge e1 : inEdges1){
+				if(!e1.loc.equals(block)){
+					System.out.println("Not all inedges in same block");
+					return false;
+				}
+				Field source1 = globalGraph.getEdgeSource(e1);
+				if(source0.statField.equals(source1.statField)) match = true;
+			}
+			if(!match) {
+				System.out.println("Edge from " + source0.name + " to " + v0.name + " did not have match");
+				return false;
+			}
+		}
+		
+		
+		v0.merged = true;
+		
+		System.out.println("Meets conditions to merge!");
+		
+		for(BlockEdge e : outEdges1){
+			BlockEdge newE = globalGraph.addEdge(v0, globalGraph.getEdgeTarget(e));
+			System.out.println("Original edge location = " + e.loc);
+			newE.loc = e.loc;
+			System.out.println("copy edge location = " + newE.loc);
+		}
+		for(BlockEdge e : inEdges1){
+			System.out.println("Original edge location = " + e.loc);
+			BlockEdge newE = globalGraph.addEdge(globalGraph.getEdgeSource(e), v0);
+			newE.loc = e.loc;
+			System.out.println("copy edge location = " + newE.loc);
+		}
+		globalGraph.removeVertex(v1);
+		fieldMap.get(v1.statField).remove(ind1);
+		
+		return true;
 	}
 }

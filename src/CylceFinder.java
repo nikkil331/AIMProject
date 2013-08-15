@@ -7,6 +7,7 @@ import java.io.ObjectOutputStream;
 import java.util.Set;
 
 import org.jgraph.JGraph;
+import org.jgraph.graph.DefaultEdge;
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.Graph;
 import org.jgrapht.alg.CycleDetector;
@@ -15,7 +16,6 @@ import org.jgrapht.graph.Subgraph;
 
 
 import tools.syncBlockStats.Field;
-import tools.syncBlockStats.StaticBlock;
 
 
 public class CylceFinder {
@@ -28,11 +28,11 @@ public class CylceFinder {
 			graphName = "graph.ser";
 		}
 		
-		DirectedGraph<Field, StaticBlock> graph = null;
+		DirectedGraph<Field, DefaultEdge> graph = null;
 		try {
 			FileInputStream gin = new FileInputStream(graphName);
 			ObjectInputStream graph_ois = new ObjectInputStream(gin);
-			graph = (DirectedGraph<Field, StaticBlock>) graph_ois.readObject();
+			graph = (DirectedGraph<Field, DefaultEdge>) graph_ois.readObject();
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -44,12 +44,12 @@ public class CylceFinder {
 		System.out.println("Number of nodes = " + graph.vertexSet().size());
 		System.out.println("Number of edges = " + graph.edgeSet().size());
 		
-		CycleDetector<Field, StaticBlock> cd = new CycleDetector<Field, StaticBlock>(graph);
+		CycleDetector<Field, DefaultEdge> cd = new CycleDetector<Field, DefaultEdge>(graph);
 		Set<Field> cycles = cd.findCycles();
 		System.out.println("Number of Cycles = " + cycles.size());
 		
-		Graph<Field, StaticBlock> cycleGraph = 
-				new Subgraph<Field,StaticBlock, DirectedGraph<Field, StaticBlock>>(graph, cycles);
+		Graph<Field, DefaultEdge> cycleGraph = 
+				new Subgraph<Field,DefaultEdge, DirectedGraph<Field, DefaultEdge>>(graph, cycles);
 		
 		String cyclesName;
 		if(args.length > 0){
