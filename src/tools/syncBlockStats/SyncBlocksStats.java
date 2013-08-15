@@ -314,7 +314,7 @@ public class SyncBlocksStats extends Tool {
 				
 				//if access is a field type, add it to map
 				if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
-					FieldInfo field = ((FieldAccessEvent)ae).getInfo().getField();
+					FieldInfo field = curr.statField;
 					
 					List<Field> vList = new ArrayList<Field>();
 					vList.add(curr);
@@ -354,16 +354,12 @@ public class SyncBlocksStats extends Tool {
 		if(DijkstraShortestPath.<Field, BlockEdge>findPathBetween(td.graph, prev, curr) == null){
 			BlockEdge e = td.graph.addEdge(prev, curr);
 			e.loc = prev.loc;
-			System.out.println(e.loc);
 		}
 	}
 	
 	private void categorizeAccess(AccessEvent ae, Stack<AccessTracker>localLocks){
 		Object target = ae.getTarget();
-		Object self = null;
-		if(ae.oldValue.getType() == Type.OBJECT){
-			self = ae.oldValue.getObjectValue();
-		}
+		Object self = ae.getAccessed();
 		
 		for(AccessTracker at : localLocks){
 			if (at.o == self){
@@ -547,10 +543,8 @@ public class SyncBlocksStats extends Tool {
 	
 	private void mergeGraph(){
 		Set<FieldInfo> fields = fieldMap.keySet();
-		System.out.println("Number of fields = " + fields.size());
 		for(FieldInfo f : fields){
 			List<Field> vertices = fieldMap.get(f);
-			System.out.println("Number of vertices per field " + f.getName() + " = " + vertices.size());
 			
 			int i = 0;
 			while(i < vertices.size()){
@@ -562,14 +556,11 @@ public class SyncBlocksStats extends Tool {
 				}
 				i++;
 			}
-			
-			
 		}
 	}
 	
 	//pass in vertex index in list to speed up deletion
 	private boolean mergeVertices(Field v0, Field v1, int ind0, int ind1){
-		System.out.println("Attempting to merge " + v0.name + " " + v1.name);
 		//outgoing-edge sets
 		
 		if(globalGraph.containsEdge(v0, v1) || globalGraph.containsEdge(v1, v0)) return false;
@@ -577,7 +568,6 @@ public class SyncBlocksStats extends Tool {
 		Set<BlockEdge> outEdges0 = globalGraph.outgoingEdgesOf(v0);
 		Set<BlockEdge> outEdges1 = globalGraph.outgoingEdgesOf(v1);
 		if(outEdges0.size() != outEdges1.size()){
-			System.out.println("Number of outedges differ");
 			return false;
 		}
 		
@@ -585,7 +575,6 @@ public class SyncBlocksStats extends Tool {
 		Set<BlockEdge> inEdges0 = globalGraph.incomingEdgesOf(v0);
 		Set<BlockEdge> inEdges1 = globalGraph.incomingEdgesOf(v1);
 		if(inEdges0.size() != inEdges1.size()){
-			System.out.println("Number of inedges differ");
 			return false;
 		}
 		
@@ -600,14 +589,12 @@ public class SyncBlocksStats extends Tool {
 			boolean match = false;
 			for(BlockEdge e1 : outEdges1){
 				if(!e1.loc.equals(block)) {
-					System.out.println("Not all outedges in same block");
 					return false;
 				}
 				Field target1 = globalGraph.getEdgeTarget(e1);
 				if(target0.statField.equals(target1.statField)) match = true;
 			}
 			if(!match){
-				System.out.println("Edge from " + v0.name + " to " + target0.name + " did not have match");
 				return false;
 			}
 		}
@@ -621,14 +608,12 @@ public class SyncBlocksStats extends Tool {
 			boolean match = false;
 			for(BlockEdge e1 : inEdges1){
 				if(!e1.loc.equals(block)){
-					System.out.println("Not all inedges in same block");
 					return false;
 				}
 				Field source1 = globalGraph.getEdgeSource(e1);
 				if(source0.statField.equals(source1.statField)) match = true;
 			}
 			if(!match) {
-				System.out.println("Edge from " + source0.name + " to " + v0.name + " did not have match");
 				return false;
 			}
 		}
@@ -636,19 +621,14 @@ public class SyncBlocksStats extends Tool {
 		
 		v0.merged = true;
 		
-		System.out.println("Meets conditions to merge!");
 		
 		for(BlockEdge e : outEdges1){
 			BlockEdge newE = globalGraph.addEdge(v0, globalGraph.getEdgeTarget(e));
-			System.out.println("Original edge location = " + e.loc);
 			newE.loc = e.loc;
-			System.out.println("copy edge location = " + newE.loc);
 		}
 		for(BlockEdge e : inEdges1){
-			System.out.println("Original edge location = " + e.loc);
 			BlockEdge newE = globalGraph.addEdge(globalGraph.getEdgeSource(e), v0);
 			newE.loc = e.loc;
-			System.out.println("copy edge location = " + newE.loc);
 		}
 		globalGraph.removeVertex(v1);
 		fieldMap.get(v1.statField).remove(ind1);
