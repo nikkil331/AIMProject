@@ -79,6 +79,7 @@ public class SyncBlocksStats extends Tool {
 	//commandline options to specify analysis
 	CommandLineOption<Boolean> trackOrder;
 	CommandLineOption<Boolean> trackCounts;
+	CommandLineOption<Boolean> mergeGraph;
 	CommandLineOption<String> outputName;
 	
 	
@@ -148,6 +149,12 @@ public class SyncBlocksStats extends Tool {
 				CommandLineOption.Kind.EXPERIMENTAL,
 				"Enable tracking of order of accesses. Default value is true");
 		
+		mergeGraph = CommandLine.makeBoolean(
+				"mergeGraph",
+				false,
+				CommandLineOption.Kind.EXPERIMENTAL,
+				"Merge certain nodes to shrink graph size. Default value is false");
+		
 		trackCounts = CommandLine.makeBoolean(
 				"noCounts",
 				true,
@@ -162,6 +169,7 @@ public class SyncBlocksStats extends Tool {
 				"Name modifier for order analysis output. -output=avrora will output the files " +
 				"avrora_graph.ser and avrora_roots.ser if the trackOrder option is set to true."
 				);
+		
 		
 		commandLine.add(trackOrder);
 		commandLine.add(trackCounts);
@@ -566,7 +574,6 @@ public class SyncBlocksStats extends Tool {
 	//pass in vertex index in list to speed up deletion
 	private boolean mergeVertices(Field v0, Field v1, int ind0, int ind1){
 		//outgoing-edge sets
-		System.out.println("merging vertices " + v0 + " and " + v1);
 		if(globalGraph.containsEdge(v0, v1) || globalGraph.containsEdge(v1, v0)) return false;
 		
 		Set<BlockEdge> outEdges0 = globalGraph.outgoingEdgesOf(v0);
@@ -583,18 +590,10 @@ public class SyncBlocksStats extends Tool {
 		}
 		
 		
-		//SourceLocation block = null;
-		
 		for(BlockEdge e0 : outEdges0){
-			/*if(block == null){
-				block = e0.loc;
-			}*/
 			Field target0 = globalGraph.getEdgeTarget(e0);
 			boolean match = false;
 			for(BlockEdge e1 : outEdges1){
-				/*if(!e1.loc.equals(block)) {
-					return false;
-				}*/
 				Field target1 = globalGraph.getEdgeTarget(e1);
 				if(target0.isField && target1.isField){
 					if(target0.statField.equals(target1.statField) && e0.loc.equals(e1.loc)) {
@@ -603,22 +602,15 @@ public class SyncBlocksStats extends Tool {
 				}
 			}
 			if(!match){
-				System.out.println("adjacent nodes didn't match");
 				return false;
 			}
 		}
 		
 		
 		for(BlockEdge e0 : inEdges0){
-			/*if(block == null){
-				block = e0.loc;
-			}*/
 			Field source0 = globalGraph.getEdgeSource(e0);
 			boolean match = false;
 			for(BlockEdge e1 : inEdges1){
-				/*if(!e1.loc.equals(block)){
-					return false;
-				}*/
 				Field source1 = globalGraph.getEdgeSource(e1);
 				if(source0.isField && source1.isField){
 					if(source0.statField.equals(source1.statField) && e0.loc.equals(e1.loc)){
@@ -627,12 +619,9 @@ public class SyncBlocksStats extends Tool {
 				}
 			}
 			if(!match) {
-				System.out.println("adjacent ndoes didn't match");
 				return false;
 			}
 		}
-		
-		System.out.println("merging!");
 		v0.merged = true;
 		
 		
