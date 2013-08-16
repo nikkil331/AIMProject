@@ -6,9 +6,12 @@ import rr.meta.SourceLocation;
 import rr.state.ShadowVar;
 
 public class Field implements ShadowVar, Serializable{
-	public SourceLocation loc;
-	public String name;
+	public SourceLocation loc = SourceLocation.NULL;
+	public String name = "";
+	
+	public boolean isField = false;
 	public FieldInfo statField = null;
+	
 	public boolean merged = false;
 		
 	@Override

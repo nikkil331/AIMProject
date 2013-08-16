@@ -326,6 +326,7 @@ public class SyncBlocksStats extends Tool {
 					}
 				}
 				
+				
 				if(!td.getSeen().contains(curr)){
 					//get last field accessed in the sync block
 					Field prev = td.getLastAccessed();
@@ -333,9 +334,10 @@ public class SyncBlocksStats extends Tool {
 					//if the current field is the first field accessed in sync block
 					if(prev == null){
 						td.setLastAccessed(curr);
+						td.graph.addVertex(curr);
 					}
 					else{
-						addAccessToGraph(td, prev, curr);
+						addEdgeAccessToGraph(td, prev, curr);
 						td.setLastAccessed(curr);
 					}
 					td.getSeen().add(curr);
@@ -348,7 +350,7 @@ public class SyncBlocksStats extends Tool {
 		}
 	}
 	
-	private void addAccessToGraph(ThreadData td, Field prev, Field curr){
+	private void addEdgeAccessToGraph(ThreadData td, Field prev, Field curr){
 		td.graph.addVertex(prev);
 		td.graph.addVertex(curr);
 		if(DijkstraShortestPath.<Field, BlockEdge>findPathBetween(td.graph, prev, curr) == null){
@@ -407,15 +409,17 @@ public class SyncBlocksStats extends Tool {
 	@Override
 	public ShadowVar makeShadowVar(AccessEvent ae){
 		Stack<AccessTracker> localLocks = tdata.get(ae.getThread()).locks;
-		if(trackOrder.get() && localLocks.size() > 0){
+		if(trackOrder.get()){
 			Field f = new Field();
 			if(ae.getKind() == AccessEvent.Kind.FIELD || ae.getKind() == AccessEvent.Kind.VOLATILE){
 				FieldAccessEvent fae = (FieldAccessEvent)ae;
+				f.isField = true;
 				f.name = fae.getInfo().getField().getName();
 				f.statField = fae.getInfo().getField();
 			}
 			else{
 				ArrayAccessEvent aae = (ArrayAccessEvent)ae;
+				f.isField = false;
 				f.name = aae.getTarget().toString() + "[" + aae.getIndex() + "]";
 			}
 			return f;
@@ -562,7 +566,7 @@ public class SyncBlocksStats extends Tool {
 	//pass in vertex index in list to speed up deletion
 	private boolean mergeVertices(Field v0, Field v1, int ind0, int ind1){
 		//outgoing-edge sets
-		
+		System.out.println("merging vertices " + v0 + " and " + v1);
 		if(globalGraph.containsEdge(v0, v1) || globalGraph.containsEdge(v1, v0)) return false;
 		
 		Set<BlockEdge> outEdges0 = globalGraph.outgoingEdgesOf(v0);
@@ -579,56 +583,66 @@ public class SyncBlocksStats extends Tool {
 		}
 		
 		
-		SourceLocation block = null;
+		//SourceLocation block = null;
 		
 		for(BlockEdge e0 : outEdges0){
-			if(block == null){
+			/*if(block == null){
 				block = e0.loc;
-			}
+			}*/
 			Field target0 = globalGraph.getEdgeTarget(e0);
 			boolean match = false;
 			for(BlockEdge e1 : outEdges1){
-				if(!e1.loc.equals(block)) {
+				/*if(!e1.loc.equals(block)) {
 					return false;
-				}
+				}*/
 				Field target1 = globalGraph.getEdgeTarget(e1);
-				if(target0.statField.equals(target1.statField)) match = true;
+				if(target0.isField && target1.isField){
+					if(target0.statField.equals(target1.statField) && e0.loc.equals(e1.loc)) {
+						match = true;
+					}
+				}
 			}
 			if(!match){
+				System.out.println("adjacent nodes didn't match");
 				return false;
 			}
 		}
 		
 		
 		for(BlockEdge e0 : inEdges0){
-			if(block == null){
+			/*if(block == null){
 				block = e0.loc;
-			}
+			}*/
 			Field source0 = globalGraph.getEdgeSource(e0);
 			boolean match = false;
 			for(BlockEdge e1 : inEdges1){
-				if(!e1.loc.equals(block)){
+				/*if(!e1.loc.equals(block)){
 					return false;
-				}
+				}*/
 				Field source1 = globalGraph.getEdgeSource(e1);
-				if(source0.statField.equals(source1.statField)) match = true;
+				if(source0.isField && source1.isField){
+					if(source0.statField.equals(source1.statField) && e0.loc.equals(e1.loc)){
+						match = true;
+					}
+				}
 			}
 			if(!match) {
+				System.out.println("adjacent ndoes didn't match");
 				return false;
 			}
 		}
 		
-		
+		System.out.println("merging!");
 		v0.merged = true;
 		
 		
 		for(BlockEdge e : outEdges1){
 			BlockEdge newE = globalGraph.addEdge(v0, globalGraph.getEdgeTarget(e));
-			newE.loc = e.loc;
+			if(newE != null) newE.loc = e.loc;
 		}
 		for(BlockEdge e : inEdges1){
 			BlockEdge newE = globalGraph.addEdge(globalGraph.getEdgeSource(e), v0);
-			newE.loc = e.loc;
+			if(newE != null) newE.loc = e.loc;
 		}
 		globalGraph.removeVertex(v1);
 		fieldMap.get(v1.statField).remove(ind1);
