@@ -479,6 +479,11 @@ public class SyncBlocksStats extends Tool {
 	private void saveOrderAnalysis() throws IOException{
 		System.out.println("Number of nodes = " + globalGraph.vertexSet().size());
 		System.out.println("Number of edges = " + globalGraph.edgeSet().size());
+		if(mergeGraph.get()){
+			mergeGraph();
+			System.out.println("Number of nodes after merge = " + globalGraph.vertexSet().size());
+			System.out.println("Number of edges after merge = " + globalGraph.edgeSet().size());
+		}
 		
 		//get vertices in cycle
 		CycleDetector<Field, BlockEdge> cd = new CycleDetector<Field, BlockEdge>(globalGraph);
@@ -505,10 +510,7 @@ public class SyncBlocksStats extends Tool {
 		JohnsonsCycleFinder<Field,BlockEdge> johnsons = new JohnsonsCycleFinder<Field,BlockEdge>(cycleGraph);
 		int numCycles = johnsons.getCycleCount();
 		System.out.println("Number of simple cycles = " + numCycles);
-		
-		synchronized(globalGraph){
-			mergeGraph();
-		}
+
 		
 		//save cycle graph
         String output = outputName.get();
