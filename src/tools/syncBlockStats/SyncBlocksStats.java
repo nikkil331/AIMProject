@@ -172,8 +172,10 @@ public class SyncBlocksStats extends Tool {
 		
 		
 		commandLine.add(trackOrder);
+		commandLine.add(mergeGraph);
 		commandLine.add(trackCounts);
 		commandLine.add(outputName);
+		
 	}
 	
 	
