@@ -507,7 +507,6 @@ public class SyncBlocksStats extends Tool {
 				edges
 				);
 		
-		
 		//find number of simple cycles in cycle graph
 		JohnsonsCycleFinder<Field,BlockEdge> johnsons = new JohnsonsCycleFinder<Field,BlockEdge>(cycleGraph);
 		int numCycles = johnsons.getCycleCount();
@@ -566,11 +565,16 @@ public class SyncBlocksStats extends Tool {
 			while(i < vertices.size()){
 				int j = i + 1;
 				while(j < vertices.size()){
-					if(!mergeVertices(vertices.get(i), vertices.get(j), i, j)){
+					if(globalGraph.containsVertex(vertices.get(i)) 
+							&& globalGraph.containsVertex(vertices.get(j))){
+						if(!mergeVertices(vertices.get(i), vertices.get(j), i, j)){
+							j++;
+						}
+					}
+					else{
 						j++;
 					}
 				}
-				i++;
 			}
 		}
 	}
