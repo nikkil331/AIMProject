@@ -7,7 +7,7 @@ import rr.meta.SourceLocation;
 public class BlockEdge extends DefaultEdge{
 
 	private static final long serialVersionUID = 1L;
-	SourceLocation loc;
+	SourceLocation loc = SourceLocation.NULL;
 	
 	public BlockEdge(){
 		super();
