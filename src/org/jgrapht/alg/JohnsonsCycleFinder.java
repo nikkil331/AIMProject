@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 
+import java.util.Iterator;
+
 import org.jgrapht.DirectedGraph;
 import org.jgrapht.graph.DirectedMaskSubgraph;
 import org.jgrapht.graph.DirectedSubgraph;
@@ -119,8 +121,10 @@ public class JohnsonsCycleFinder<V,E> {
 	public void unblock(V u){
 		blocked.put(u, false);
 		Set<V> value = B.get(u);
-		for(V w : value){
-			B.get(u).remove(w);
+		Iterator<V> iter = value.iterator();
+		while(iter.hasNext()){
+			V w = iter.next();
+			iter.remove();
 			if(blocked.get(w)) unblock(w);
 		}
 	}
