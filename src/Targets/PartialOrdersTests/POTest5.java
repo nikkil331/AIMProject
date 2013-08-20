@@ -41,12 +41,18 @@ public class POTest5 {
 	}
 	
 	public static void main(String[] args){
-		int numThreads = 3;
+		Thread one = new Thread(new AtoB());
+		Thread two = new Thread(new AtoC());
+		Thread three = new Thread(new BtoC());
+		one.start();
+		two.start();
+		three.start();
+		/*int numThreads = 3;
 		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 		executor.execute(new AtoB());
 		executor.execute(new AtoC());
 		executor.execute(new BtoC());
 		executor.shutdown();
-		while(!executor.isTerminated()){}
+		while(!executor.isTerminated()){}*/
 	}
 }

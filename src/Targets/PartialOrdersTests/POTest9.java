@@ -19,11 +19,16 @@ public class POTest9 {
 	
 	public static void main(String[] args){
 		int numThreads=5;
-		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+		for(int i = 0; i < numThreads; i++){
+			Thread t = new Thread(new Test());
+			t.start();
+		}
+		
+		/*ExecutorService executor = Executors.newFixedThreadPool(numThreads);
 		for(int i = 0; i < numThreads; i++){
 			executor.execute(new Test());
 		}
 		executor.shutdown();
-		while(!executor.isTerminated()){}
+		while(!executor.isTerminated()){}*/
 	}
 }
