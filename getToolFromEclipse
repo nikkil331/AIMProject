@@ -1,10 +1,10 @@
 #!/bin/bash
 
-source=~/Documents/java\ workspace/RoadRunner/src
+source=~/Documents/java\ workspace/RoadRunner/src/tools/syncBlockStats
 
-cp "$source"/"$1".java src
-cd src
-javac "$1".java
-mv "$1".java tools/trials
-mv "$1"*.class ~/AIMProject/RoadRunner/classes/tools/trials
+cp "$source"/SyncBlocksStats.java classes
+cd classes
+javac SyncBlocksStats.java
+mv SyncBlocksStats.java ../src/tools/syncBlockStats
+mv SyncBlocksStats*.class tools/syncBlockStats
 cd ..
